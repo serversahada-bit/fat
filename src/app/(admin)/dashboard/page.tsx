@@ -69,7 +69,7 @@ export default async function Dashboard() {
           </div>
         ) : (
           <div className="flex flex-col gap-6">
-            {daftarPengajuan.map((item) => (
+            {daftarPengajuan.map((item: any) => (
               <article key={item.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md md:p-6">
                 <div className="mb-4 flex flex-col gap-4 border-b border-slate-100 pb-4 md:flex-row md:items-start md:justify-between">
                   <div>
