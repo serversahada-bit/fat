@@ -6,9 +6,9 @@ import { InlineEdit } from "@/components/InlineEdit";
 import { FundRequestPrintCell } from "@/components/FundRequestPrintCell";
 import { TopScrollTable } from "@/components/TopScrollTable";
 import { getVisibleDashboardNavItems } from "@/lib/permissions";
-import type { Prisma } from "@prisma/client";
+import type { semua_pengajuan as SemuaPengajuanRecord, user as UserRecord } from "@prisma/client";
 
-type SemuaPengajuan = Prisma.semua_pengajuanGetPayload<{ include: { user: true } }>;
+type SemuaPengajuan = SemuaPengajuanRecord & { user: UserRecord };
 
 function formatCurrency(amount: number | null | undefined) {
   if (amount === null || amount === undefined) return "-";
