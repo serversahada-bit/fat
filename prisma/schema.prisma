@@ -1,0 +1,191 @@
+generator client {
+  provider   = "prisma-client-js"
+  engineType = "binary"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  KARYAWAN
+}
+
+enum PengajuanStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model account {
+  id                String   @id
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?  @db.Text
+  access_token      String?  @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?  @db.Text
+  session_state     String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime
+  user              user     @relation(fields: [userId], references: [id], onDelete: Cascade, map: "Account_userId_fkey")
+
+  @@unique([provider, providerAccountId], map: "Account_provider_providerAccountId_key")
+  @@index([userId], map: "Account_userId_fkey")
+}
+
+model session {
+  id           String   @id
+  sessionToken String   @unique(map: "Session_sessionToken_key")
+  userId       String
+  expires      DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime
+  user         user     @relation(fields: [userId], references: [id], onDelete: Cascade, map: "Session_userId_fkey")
+
+  @@index([userId], map: "Session_userId_fkey")
+}
+
+model user {
+  id                 String               @id
+  name               String?
+  email              String?              @unique(map: "User_email_key")
+  emailVerified      DateTime?
+  image              String?
+  password           String?
+  role               UserRole             @default(KARYAWAN)
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime
+  username           String?              @unique(map: "User_username_key")
+  divisi             String?
+  permissions        String?              @db.Text
+  account            account[]
+  pengajuan          pengajuan[]
+  session            session[]
+  kebutuhan_bulanan  kebutuhan_bulanan[]
+  kebutuhan_iklan    kebutuhan_iklan[]
+  semua_pengajuan    semua_pengajuan[]
+}
+
+model pengajuan {
+  id           String          @id @default(cuid())
+  userId       String
+  judul        String
+  deskripsi    String          @db.Text
+  status       PengajuanStatus @default(PENDING)
+  catatanAdmin String?         @db.Text
+  diprosesPada DateTime?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  user         user            @relation(fields: [userId], references: [id], onDelete: Cascade, map: "Pengajuan_userId_fkey")
+
+  @@index([status], map: "Pengajuan_status_idx")
+  @@index([userId], map: "Pengajuan_userId_idx")
+}
+
+model verificationtoken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token], map: "VerificationToken_identifier_token_key")
+}
+
+model kebutuhan_bulanan {
+  id              String          @id @default(cuid())
+  userId          String
+  bulan           String
+  kategori        String          @default("OPS RT")
+  divisi          String
+  pic             String
+  rincian         String          @db.Text
+  qty             Int
+  satuan          String
+  hargaSatuan     Float
+  total           Float
+  status          PengajuanStatus @default(PENDING)
+  catatanTambahan String?         @db.Text
+  catatanAdmin    String?         @db.Text
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  user            user            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([userId])
+}
+
+model kebutuhan_iklan {
+  id              String          @id @default(cuid())
+  userId          String
+  bulan           String
+  platform        String          @default("Meta Ads")
+  divisi          String
+  pic             String
+  rincian         String          @db.Text
+  qty             Int
+  satuan          String
+  hargaSatuan     Float
+  total           Float
+  status          PengajuanStatus @default(PENDING)
+  catatanTambahan String?         @db.Text
+  catatanAdmin    String?         @db.Text
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  user            user            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([userId])
+}
+
+model semua_pengajuan {
+  id                      String          @id @default(cuid())
+  userId                  String
+  timestamp               DateTime        @default(now())
+  email                   String?
+  tanggalPermohonan       DateTime?
+  tipeTransaksi           String?
+  tipePembayaran          String?
+  informasiPenerima       String?
+  namaPenerima            String?
+  detailBankPenerima      String?
+  nomorRekeningHp         String?
+  nominalTransaksi        Float?
+  keterangan              String?         @db.Text
+  lampiranFinance         String?         @db.Text
+  column17                String?
+  score                   String?
+  lampiranTax             String?         @db.Text
+  tipePengajuan           String?
+  bankPengirim            String?
+  alokasi                 String?
+  printPendukung          String?
+  printForm               String?
+  nomorCetakForm          String?
+  verifiedFinance         String?
+  timestampVerifyFinance  DateTime?
+  jenisPajak              String?
+  nilaiPajakTerutang      Float?
+  bankOut                 String?
+  adaPpn                  String?
+  verifiedTax             String?
+  timestampVerifyTax      DateTime?
+  tanggalRealisasi        DateTime?
+  nominalRealisasi        Float?
+  invoice                 String?
+  nomorBukti              String?
+  adminBank               String?
+  pic                     String?
+  status                  PengajuanStatus @default(PENDING)
+  createdAt               DateTime        @default(now())
+  updatedAt               DateTime        @updatedAt
+  user                    user            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([userId])
+}
