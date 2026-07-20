@@ -6,6 +6,9 @@ import { DASHBOARD_PERMISSIONS, requireAdminPermission } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getVisibleDashboardNavItems } from "@/lib/permissions";
 import Link from "next/link";
+import type { Prisma } from "@prisma/client";
+
+type PengajuanBulanan = Prisma.kebutuhan_bulananGetPayload<{ include: { user: true } }>;
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("id-ID", {
@@ -51,7 +54,7 @@ export default async function ApprovalBulananPage({
   };
   const reportTitle = reportTitleMap[currentTab] || `RENCANA ANGGARAN & BIAYA (${currentTab})`;
 
-  const daftarPengajuan = await prisma.kebutuhan_bulanan.findMany({
+  const daftarPengajuan: PengajuanBulanan[] = await prisma.kebutuhan_bulanan.findMany({
     where: whereClause,
     orderBy: { createdAt: "desc" },
     include: { user: true },

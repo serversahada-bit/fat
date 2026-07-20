@@ -6,6 +6,9 @@ import { InlineEdit } from "@/components/InlineEdit";
 import { FundRequestPrintCell } from "@/components/FundRequestPrintCell";
 import { TopScrollTable } from "@/components/TopScrollTable";
 import { getVisibleDashboardNavItems } from "@/lib/permissions";
+import type { Prisma } from "@prisma/client";
+
+type SemuaPengajuan = Prisma.semua_pengajuanGetPayload<{ include: { user: true } }>;
 
 function formatCurrency(amount: number | null | undefined) {
   if (amount === null || amount === undefined) return "-";
@@ -34,7 +37,7 @@ export default async function ApprovalSemuaPage() {
   const session = await requireAdminPermission(DASHBOARD_PERMISSIONS.SEMUA);
   const navItems = getVisibleDashboardNavItems(session.user);
 
-  const daftarPengajuan = await prisma.semua_pengajuan.findMany({
+  const daftarPengajuan: SemuaPengajuan[] = await prisma.semua_pengajuan.findMany({
     orderBy: { createdAt: "desc" },
     include: { user: true },
   });
