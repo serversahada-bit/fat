@@ -234,7 +234,7 @@ export default async function PengajuanIklanPage({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-sm">
-                  {daftarPengajuan.map((item) => {
+                  {daftarPengajuan.map((item: any) => {
                     const financeSubmission = financeStatusMap.get(item.id) ?? null;
 
                     return (
