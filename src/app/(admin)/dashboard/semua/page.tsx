@@ -6,9 +6,56 @@ import { InlineEdit } from "@/components/InlineEdit";
 import { FundRequestPrintCell } from "@/components/FundRequestPrintCell";
 import { TopScrollTable } from "@/components/TopScrollTable";
 import { getVisibleDashboardNavItems } from "@/lib/permissions";
-import type { semua_pengajuan as SemuaPengajuanRecord, user as UserRecord } from "@prisma/client";
 
-type SemuaPengajuan = SemuaPengajuanRecord & { user: UserRecord };
+type PengajuanStatus = "PENDING" | "APPROVED" | "REJECTED";
+
+type SemuaPengajuan = {
+  id: string;
+  userId: string;
+  timestamp: Date;
+  email: string | null;
+  tanggalPermohonan: Date | null;
+  tipeTransaksi: string | null;
+  tipePembayaran: string | null;
+  informasiPenerima: string | null;
+  namaPenerima: string | null;
+  detailBankPenerima: string | null;
+  nomorRekeningHp: string | null;
+  nominalTransaksi: number | null;
+  keterangan: string | null;
+  lampiranFinance: string | null;
+  column17: string | null;
+  score: string | null;
+  lampiranTax: string | null;
+  tipePengajuan: string | null;
+  bankPengirim: string | null;
+  alokasi: string | null;
+  printPendukung: string | null;
+  printForm: string | null;
+  nomorCetakForm: string | null;
+  verifiedFinance: string | null;
+  timestampVerifyFinance: Date | null;
+  jenisPajak: string | null;
+  nilaiPajakTerutang: number | null;
+  bankOut: string | null;
+  adaPpn: string | null;
+  verifiedTax: string | null;
+  timestampVerifyTax: Date | null;
+  tanggalRealisasi: Date | null;
+  nominalRealisasi: number | null;
+  invoice: string | null;
+  nomorBukti: string | null;
+  adminBank: string | null;
+  pic: string | null;
+  status: PengajuanStatus;
+  createdAt: Date;
+  updatedAt: Date;
+  user: {
+    name: string | null;
+    username: string | null;
+    email: string | null;
+  };
+};
 
 function formatCurrency(amount: number | null | undefined) {
   if (amount === null || amount === undefined) return "-";

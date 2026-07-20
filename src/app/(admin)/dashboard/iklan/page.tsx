@@ -6,9 +6,27 @@ import { DASHBOARD_PERMISSIONS, requireAdminPermission } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getVisibleDashboardNavItems } from "@/lib/permissions";
 import Link from "next/link";
-import type { kebutuhan_iklan as KebutuhanIklan, user as UserRecord } from "@prisma/client";
 
-type PengajuanIklan = KebutuhanIklan & { user: UserRecord };
+type PengajuanStatus = "PENDING" | "APPROVED" | "REJECTED";
+
+type PengajuanIklan = {
+  id: string;
+  userId: string;
+  bulan: string;
+  platform: string;
+  divisi: string;
+  pic: string;
+  rincian: string;
+  qty: number;
+  satuan: string;
+  hargaSatuan: number;
+  total: number;
+  status: PengajuanStatus;
+  catatanTambahan: string | null;
+  catatanAdmin: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("id-ID", {

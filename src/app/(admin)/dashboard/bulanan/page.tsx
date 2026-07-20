@@ -6,9 +6,27 @@ import { DASHBOARD_PERMISSIONS, requireAdminPermission } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getVisibleDashboardNavItems } from "@/lib/permissions";
 import Link from "next/link";
-import type { kebutuhan_bulanan as KebutuhanBulanan, user as UserRecord } from "@prisma/client";
 
-type PengajuanBulanan = KebutuhanBulanan & { user: UserRecord };
+type PengajuanStatus = "PENDING" | "APPROVED" | "REJECTED";
+
+type PengajuanBulanan = {
+  id: string;
+  userId: string;
+  bulan: string;
+  kategori: string;
+  divisi: string;
+  pic: string;
+  rincian: string;
+  qty: number;
+  satuan: string;
+  hargaSatuan: number;
+  total: number;
+  status: PengajuanStatus;
+  catatanTambahan: string | null;
+  catatanAdmin: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("id-ID", {
