@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { AppShell } from "@/components/AppShell";
 import { createKebutuhanBulanan } from "@/app/actions/pengajuan";
 import { FinanceSubmissionLauncher } from "@/components/FinanceSubmissionLauncher";

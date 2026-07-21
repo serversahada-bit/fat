@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { AppShell } from "@/components/AppShell";
 import { updatePengajuanStatus } from "@/app/actions/pengajuan";
 import { DASHBOARD_PERMISSIONS, requireAdminPermission } from "@/lib/auth";

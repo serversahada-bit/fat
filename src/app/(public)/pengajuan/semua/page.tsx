@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { AppShell } from "@/components/AppShell";
 import { getVisibleEmployeeNavItems } from "@/lib/permissions";
 import { EMPLOYEE_PERMISSIONS, requireEmployeeFinanceAccess } from "@/lib/auth";

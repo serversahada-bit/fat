@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { AppShell } from "@/components/AppShell";
 import { createUser, deleteUser, updateUserPermissions } from "@/app/actions/user";
 import { DASHBOARD_PERMISSIONS, requireSuperAdminPermission } from "@/lib/auth";

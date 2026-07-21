@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { AppShell } from "@/components/AppShell";
 import { requireAdminPermission, DASHBOARD_PERMISSIONS } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
