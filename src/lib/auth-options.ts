@@ -63,11 +63,25 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
+        const requestedUsername = credentials.username.trim();
+
+        console.info('[auth] credentials login attempt', {
+          username: requestedUsername,
+        });
+
         const user = (await prisma.user.findUnique({
           where: {
-            username: credentials.username.trim(),
+            username: requestedUsername,
           },
         })) as UserWithPermissions | null;
+
+        console.info('[auth] credentials user lookup', {
+          username: requestedUsername,
+          found: Boolean(user),
+          hasPassword: Boolean(user?.password),
+          role: user?.role ?? null,
+          passwordLength: user?.password?.length ?? 0,
+        });
 
         if (!user?.password) {
           return null;
@@ -77,6 +91,11 @@ export const authOptions: NextAuthOptions = {
           credentials.password,
           user.password,
         );
+
+        console.info('[auth] credentials password result', {
+          username: requestedUsername,
+          ok: isCorrectPassword,
+        });
 
         if (!isCorrectPassword) {
           return null;
