@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { signIn } from 'next-auth/react';
+import { getSession, signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
@@ -19,18 +19,18 @@ export default function LoginPage() {
     try {
       const res = await signIn('credentials', {
         redirect: false,
-        callbackUrl: '/',
         username: username.trim(),
         password,
       });
 
       if (res?.error) {
         setError('Username atau password salah');
-      } else if (res?.url) {
-        router.replace(res.url);
-        router.refresh();
       } else {
-        router.replace('/');
+        const session = await getSession();
+        const role = session?.user?.role;
+        const nextRoute = role === 'KARYAWAN' ? '/pengajuan' : '/dashboard';
+
+        router.replace(nextRoute);
         router.refresh();
       }
     } catch {
@@ -171,3 +171,4 @@ export default function LoginPage() {
     </div>
   );
 }
+
