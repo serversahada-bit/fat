@@ -40,6 +40,8 @@ async function buildSemuaPengajuanData(formData: FormData, userId: string) {
     userId,
 
     email: String(formData.get("email") ?? "").trim() || null,
+    namaPemohon: String(formData.get("namaPemohon") ?? "").trim() || null,
+    emailVendor: String(formData.get("emailVendor") ?? "").trim() || null,
     tanggalPermohonan: formData.get("tanggalPermohonan") ? new Date(String(formData.get("tanggalPermohonan"))) : null,
     tipeTransaksi: String(formData.get("tipeTransaksi") ?? "").trim() || null,
     tipePembayaran: String(formData.get("tipePembayaran") ?? "").trim() || null,
@@ -72,6 +74,9 @@ async function buildSemuaPengajuanData(formData: FormData, userId: string) {
 
     verifiedTax: String(formData.get("verifiedTax") ?? "").trim() || null,
     timestampVerifyTax: formData.get("timestampVerifyTax") ? new Date(String(formData.get("timestampVerifyTax"))) : null,
+
+    verifiedManager: String(formData.get("verifiedManager") ?? "").trim() || null,
+    timestampVerifyManager: formData.get("timestampVerifyManager") ? new Date(String(formData.get("timestampVerifyManager"))) : null,
 
     tanggalRealisasi: formData.get("tanggalRealisasi") ? new Date(String(formData.get("tanggalRealisasi"))) : null,
     nominalRealisasi: formData.get("nominalRealisasi") ? parseFloat(String(formData.get("nominalRealisasi"))) : null,
@@ -134,7 +139,7 @@ export async function updateSemuaPengajuanStatus(formData: FormData) {
 
   const updatableFields = [
     "verifiedFinance", "bankPengirim", "alokasi", "printPendukung", "printForm", "nomorCetakForm",
-    "jenisPajak", "nilaiPajakTerutang", "bankOut", "adaPpn", "verifiedTax",
+    "jenisPajak", "nilaiPajakTerutang", "bankOut", "adaPpn", "verifiedTax", "verifiedManager",
     "tanggalRealisasi", "nominalRealisasi", "invoice", "nomorBukti", "adminBank",
   ];
 
@@ -161,6 +166,10 @@ export async function updateSemuaPengajuanStatus(formData: FormData) {
     updateData.timestampVerifyTax = new Date();
   }
 
+  if (updateData.verifiedManager && updateData.verifiedManager !== "PENDING" && !updateData.timestampVerifyManager) {
+    updateData.timestampVerifyManager = new Date();
+  }
+
   if (Object.keys(updateData).length === 0) return;
 
   await prisma.semua_pengajuan.update({
@@ -181,7 +190,39 @@ export async function updateSemuaField(id: string, field: string, value: string 
 
   const updateData: Record<string, Date | number | string | null> = {};
 
-  if (field.startsWith("tanggal") || field.startsWith("timestamp")) {
+  if (field === "jenisPajak") {
+    const pengajuan = await prisma.semua_pengajuan.findUnique({
+      where: { id },
+      select: { nominalTransaksi: true }
+    });
+    
+    let taxAmount = 0;
+    if (value && pengajuan?.nominalTransaksi) {
+      const pajakRecord = await prisma.master_pajak.findFirst({
+        where: { jenisPajak: value }
+      });
+      if (pajakRecord) {
+        taxAmount = pengajuan.nominalTransaksi * (pajakRecord.persentase / 100);
+      }
+    }
+    
+    updateData["jenisPajak"] = value;
+    updateData["nilaiPajakTerutang"] = taxAmount === 0 && !value ? null : taxAmount;
+    if (pengajuan?.nominalTransaksi) {
+      updateData["bankOut"] = (pengajuan.nominalTransaksi - taxAmount).toString();
+    }
+  } else if (field === "nilaiPajakTerutang") {
+    const taxAmount = value ? parseFloat(value) : 0;
+    updateData["nilaiPajakTerutang"] = taxAmount === 0 && !value ? null : taxAmount;
+    
+    const pengajuan = await prisma.semua_pengajuan.findUnique({
+      where: { id },
+      select: { nominalTransaksi: true }
+    });
+    if (pengajuan?.nominalTransaksi) {
+      updateData["bankOut"] = (pengajuan.nominalTransaksi - taxAmount).toString();
+    }
+  } else if (field.startsWith("tanggal") || field.startsWith("timestamp")) {
     updateData[field] = value ? new Date(value) : null;
   } else if (field.startsWith("nilai") || field.startsWith("nominal")) {
     updateData[field] = value ? parseFloat(value) : null;
@@ -201,6 +242,12 @@ export async function updateSemuaField(id: string, field: string, value: string 
     updateData.timestampVerifyTax = null;
   }
 
+  if (field === "verifiedManager" && value !== "PENDING" && value !== null && value !== "") {
+    updateData.timestampVerifyManager = new Date();
+  } else if (field === "verifiedManager" && (value === "PENDING" || value === "" || value === null)) {
+    updateData.timestampVerifyManager = null;
+  }
+
   await prisma.semua_pengajuan.update({
     where: { id },
     data: updateData,
@@ -212,4 +259,26 @@ export async function updateSemuaField(id: string, field: string, value: string 
   revalidatePath("/pengajuan/semua");
   return { success: true };
 }
+
+export async function uploadInvoiceInline(formData: FormData) {
+  const id = formData.get("id") as string;
+  const file = formData.get("file") as File;
+  if (!id || !file) return { success: false };
+  
+  const url = await saveUploadedFile(file, "invoices");
+  if (!url) return { success: false };
+  
+  await prisma.semua_pengajuan.update({
+    where: { id },
+    data: { invoice: url }
+  });
+  
+  revalidatePath("/dashboard/semua");
+  revalidatePath("/pengajuan/bulanan");
+  revalidatePath("/pengajuan/iklan");
+  revalidatePath("/pengajuan/semua");
+  
+  return { success: true, url };
+}
+
 

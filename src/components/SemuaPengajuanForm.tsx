@@ -95,6 +95,7 @@ export function SemuaPengajuanForm({
   sourceId,
   sourceType,
   userEmail,
+  userName,
 }: {
   defaultKeterangan: string;
   defaultNominal: string;
@@ -104,6 +105,7 @@ export function SemuaPengajuanForm({
   sourceId?: string;
   sourceType?: string;
   userEmail: string;
+  userName: string;
 }) {
   const router = useRouter();
   const initialState = { success: false, message: "" };
@@ -156,9 +158,8 @@ export function SemuaPengajuanForm({
     <>
       <form
         action={inlineMode ? formAction : createSemuaPengajuan}
-        className="flex flex-col gap-6"
+        className="flex flex-col gap-6 text-left"
       >
-        <input name="email" type="hidden" value={userEmail} />
         <input name="tipeTransaksi" type="hidden" value={finalTipeTransaksi} />
         <input name="tipePembayaran" type="hidden" value={finalTipePembayaran} />
         <input name="informasiPenerima" type="hidden" value={informasiPenerima} />
@@ -167,6 +168,40 @@ export function SemuaPengajuanForm({
         <input name="score" type="hidden" value={sourceId ?? ""} />
 
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2 md:gap-6">
+          <div className="flex flex-col gap-2 md:col-span-2">
+            <label className="text-sm font-semibold text-slate-700">NAMA PEMOHON</label>
+            <input
+              className="w-full rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm text-slate-700 outline-none cursor-not-allowed"
+              defaultValue={userName}
+              name="namaPemohon"
+              readOnly
+              type="text"
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-semibold text-slate-700">EMAIL PRIBADI</label>
+            <input
+              className="w-full rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm text-slate-700 outline-none cursor-not-allowed"
+              defaultValue={userEmail}
+              name="email"
+              readOnly
+              type="email"
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-semibold text-slate-700">
+              EMAIL VENDOR <span className="font-normal text-slate-400">(Opsional)</span>
+            </label>
+            <input
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20"
+              name="emailVendor"
+              placeholder="Contoh: vendor@email.com"
+              type="email"
+            />
+          </div>
+
           <div className="flex flex-col gap-2">
             <label className="text-sm font-semibold text-slate-700">
               TANGGAL PERMOHONAN

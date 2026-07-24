@@ -59,7 +59,9 @@ export default async function ApprovalIklanPage({
   const platformFilter =
     currentTab === "Meta Ads" ? "Meta Ads" :
     currentTab === "Google Ads" ? "Google Ads" :
-    currentTab === "TikTok Ads" ? "TikTok Ads" : undefined;
+    currentTab === "TikTok Ads" ? "TikTok Ads" :
+    currentTab === "Snack Video" ? "Snack Video" :
+    currentTab === "Marketplace" ? "Marketplace" : undefined;
 
   const whereClause: { platform?: string } = {};
   if (platformFilter) {
@@ -71,6 +73,8 @@ export default async function ApprovalIklanPage({
     "Meta Ads": "RENCANA ANGGARAN & BIAYA (META ADS)",
     "Google Ads": "RENCANA ANGGARAN & BIAYA (GOOGLE ADS)",
     "TikTok Ads": "RENCANA ANGGARAN & BIAYA (TIKTOK ADS)",
+    "Snack Video": "RENCANA ANGGARAN & BIAYA (SNACK VIDEO)",
+    "Marketplace": "RENCANA ANGGARAN & BIAYA (MARKETPLACE)",
   };
   const reportTitle = reportTitleMap[currentTab] || `RENCANA ANGGARAN & BIAYA (${currentTab})`;
 
@@ -81,7 +85,7 @@ export default async function ApprovalIklanPage({
   });
 
   return (
-    <AppShell
+    <AppShell user={session.user}
       title="Approval Iklan"
       subtitle="Tinjau dan setujui pengajuan kebutuhan kampanye iklan dari tim."
       navItems={navItems}
@@ -90,7 +94,7 @@ export default async function ApprovalIklanPage({
         <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-8">
           <div className="mb-6 flex flex-col justify-between gap-4 border-b border-slate-100 pb-6 sm:flex-row sm:items-center">
             <div className="flex flex-wrap items-center gap-2">
-              {["Semua", "Meta Ads", "Google Ads", "TikTok Ads"].map((tab) => (
+              {["Semua", "Meta Ads", "Google Ads", "TikTok Ads", "Snack Video", "Marketplace"].map((tab) => (
                 <Link
                   key={tab}
                   href={`/dashboard/iklan?tab=${tab}`}
@@ -105,7 +109,7 @@ export default async function ApprovalIklanPage({
               ))}
             </div>
 
-            <ExportPDFButton data={daftarPengajuan} title={reportTitle} />
+            <ExportPDFButton data={daftarPengajuan} title={reportTitle} kategori={currentTab === "Semua" ? "Iklan" : currentTab} />
           </div>
 
           {daftarPengajuan.length === 0 ? (

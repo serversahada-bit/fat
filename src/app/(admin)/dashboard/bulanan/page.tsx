@@ -81,7 +81,7 @@ export default async function ApprovalBulananPage({
   });
 
   return (
-    <AppShell
+    <AppShell user={session.user}
       title="Approval Bulanan"
       subtitle="Tinjau dan setujui pengajuan kebutuhan bulanan dari karyawan."
       navItems={navItems}
@@ -105,7 +105,7 @@ export default async function ApprovalBulananPage({
               ))}
             </div>
 
-            <ExportPDFButton data={daftarPengajuan} title={reportTitle} />
+            <ExportPDFButton data={daftarPengajuan} title={reportTitle} kategori={currentTab} />
           </div>
 
           {daftarPengajuan.length === 0 ? (

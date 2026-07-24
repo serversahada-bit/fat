@@ -19,6 +19,7 @@ export async function createUser(formData: FormData) {
   const username = String(formData.get("username") ?? "").trim();
   const password = String(formData.get("password") ?? "").trim();
   const divisi = String(formData.get("divisi") ?? "").trim();
+  const email = String(formData.get("email") ?? "").trim() || null;
   const role = String(formData.get("role") ?? "KARYAWAN").trim();
   const permissions = readSelectedPermissions(formData);
 
@@ -47,36 +48,70 @@ export async function createUser(formData: FormData) {
       username,
       password: hashedPassword,
       divisi,
+      email,
       role: role as "SUPER_ADMIN" | "ADMIN" | "KARYAWAN",
       permissions,
       updatedAt: new Date(),
     } as never,
   });
 
-  revalidatePath("/dashboard/users");
-  redirect("/dashboard/users");
+  revalidatePath("/dashboard/setting");
+  redirect("/dashboard/setting");
 }
 
-export async function updateUserPermissions(formData: FormData) {
+export async function updateUser(formData: FormData) {
   await requireSuperAdminPermission(DASHBOARD_PERMISSIONS.USERS);
 
   const userId = String(formData.get("userId") ?? "").trim();
+  const name = String(formData.get("name") ?? "").trim();
+  const username = String(formData.get("username") ?? "").trim();
+  const password = String(formData.get("password") ?? "").trim();
+  const divisi = String(formData.get("divisi") ?? "").trim();
+  const email = String(formData.get("email") ?? "").trim() || null;
+  const role = String(formData.get("role") ?? "KARYAWAN").trim();
   const permissions = readSelectedPermissions(formData);
 
   if (!userId) {
     throw new Error("User tidak ditemukan!");
   }
 
-  await prisma.user.update({
-    where: { id: userId },
-    data: {
-      permissions,
-      updatedAt: new Date(),
-    } as never,
+  if (!name || !username || !divisi) {
+    throw new Error("Field Nama, Username, dan Divisi wajib diisi!");
+  }
+
+  if (!["SUPER_ADMIN", "ADMIN", "KARYAWAN"].includes(role)) {
+    throw new Error("Role user tidak valid!");
+  }
+
+  const existingUser = await prisma.user.findUnique({
+    where: { username },
   });
 
-  revalidatePath("/dashboard/users");
-  redirect("/dashboard/users");
+  if (existingUser && existingUser.id !== userId) {
+    throw new Error("Username sudah digunakan oleh akun lain!");
+  }
+
+  const updateData: any = {
+    name,
+    username,
+    divisi,
+    email,
+    role: role as "SUPER_ADMIN" | "ADMIN" | "KARYAWAN",
+    permissions,
+    updatedAt: new Date(),
+  };
+
+  if (password) {
+    updateData.password = await bcrypt.hash(password, 10);
+  }
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: updateData,
+  });
+
+  revalidatePath("/dashboard/setting");
+  redirect("/dashboard/setting");
 }
 
 export async function deleteUser(formData: FormData) {
@@ -96,6 +131,6 @@ export async function deleteUser(formData: FormData) {
     where: { id: userId },
   });
 
-  revalidatePath("/dashboard/users");
-  redirect("/dashboard/users");
+  revalidatePath("/dashboard/setting");
+  redirect("/dashboard/setting");
 }

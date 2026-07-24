@@ -3,6 +3,7 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { useEffect, useState } from "react";
+import { getSignatures } from "@/app/actions/setting";
 
 interface ExportPDFItem {
   status?: string;
@@ -23,6 +24,7 @@ interface ExportPDFButtonProps {
   data: ExportPDFItem[];
   title: string;
   documentNumber?: string;
+  kategori?: string;
 }
 
 interface LoadedImage {
@@ -573,6 +575,7 @@ export function ExportPDFButton({
   data,
   title,
   documentNumber,
+  kategori = "Semua",
 }: ExportPDFButtonProps) {
   const [previewUrl, setPreviewUrl] =
     useState<string | null>(null);
@@ -624,7 +627,7 @@ export function ExportPDFButton({
        * public/favicon.ico
        * public/Picture1.png
        */
-      const [logo, wave] =
+      const [logo, wave, signatures] =
         await Promise.all([
           loadImageAsBase64(
             "/favicon.ico",
@@ -635,13 +638,14 @@ export function ExportPDFButton({
             "/Picture1.png",
             false,
           ),
+          getSignatures(),
         ]);
 
       /*
        * A4 portrait.
        */
       const doc = new jsPDF({
-        orientation: "portrait",
+        orientation: "landscape",
         unit: "mm",
         format: "a4",
         compress: true,
@@ -742,55 +746,21 @@ export function ExportPDFButton({
         },
 
         /*
-         * Total lebar kolom 188 mm.
-         * A4 portrait: 210 mm.
+         * Total lebar kolom 277 mm.
+         * A4 landscape: 297 mm.
          * Margin kiri dan kanan masing-masing 10 mm.
          */
         columnStyles: {
-          0: {
-            cellWidth: 14,
-            halign: "center",
-          },
-
-          1: {
-            cellWidth: 15,
-          },
-
-          2: {
-            cellWidth: 15,
-          },
-
-          3: {
-            cellWidth: 16,
-          },
-
-          4: {
-            cellWidth: 30,
-          },
-
-          5: {
-            cellWidth: 12,
-            halign: "center",
-          },
-
-          6: {
-            cellWidth: 19,
-            halign: "right",
-          },
-
-          7: {
-            cellWidth: 19,
-            halign: "right",
-          },
-
-          8: {
-            cellWidth: 17,
-            halign: "center",
-          },
-
-          9: {
-            cellWidth: 31,
-          },
+          0: { cellWidth: 16, halign: "center" },
+          1: { cellWidth: 20 },
+          2: { cellWidth: 25 },
+          3: { cellWidth: 25 },
+          4: { cellWidth: 60 },
+          5: { cellWidth: 15, halign: "center" },
+          6: { cellWidth: 25, halign: "right" },
+          7: { cellWidth: 25, halign: "right" },
+          8: { cellWidth: 20, halign: "center" },
+          9: { cellWidth: 46 },
         },
 
         /*
@@ -841,31 +811,59 @@ export function ExportPDFButton({
       doc.setFontSize(9);
       doc.setTextColor(0, 0, 0);
 
-      // Kiri
-      doc.setFont("helvetica", "normal");
-      doc.text(`Madiun, ${dateString}`, PDF_LAYOUT.marginLeft + 5, currentY);
-      doc.text("Dibuat oleh", PDF_LAYOUT.marginLeft + 5, currentY + 5);
-      
-      doc.setFont("helvetica", "bold");
-      // Underline untuk NURUL FITRIYAH
-      doc.text("NURUL FITRIYAH", PDF_LAYOUT.marginLeft + 5, currentY + 25);
-      doc.setLineWidth(0.3);
-      doc.line(PDF_LAYOUT.marginLeft + 5, currentY + 26, PDF_LAYOUT.marginLeft + 5 + doc.getTextWidth("NURUL FITRIYAH"), currentY + 26);
-      
-      doc.setFont("helvetica", "normal");
-      doc.text("Koordinator HC", PDF_LAYOUT.marginLeft + 5, currentY + 30);
+      // Dapatkan tanda tangan spesifik kategori atau gunakan Default (Semua)
+      let signersForCategory = signatures.filter((s: any) => s.kategori === kategori);
+      if (signersForCategory.length === 0) {
+        if (kategori === "Meta Ads") {
+          signersForCategory = [
+            { id: "sig1", posisi: "Dibuat oleh", nama: "AHMAD BAHRUDDIN RAMDHAN", jabatan: "KOORDINATOR ADVERTISER", x: 0, y: 0, kategori },
+            { id: "sig2", posisi: "Diketahui oleh (SPV)", nama: "RIFAN ARI EFENDI", jabatan: "SUPERVISOR MARKETING", x: 0, y: 0, kategori },
+            { id: "sig3", posisi: "Diketahui oleh (MGR)", nama: "YANUER MONTIO", jabatan: "MANAGER BRANDING", x: 0, y: 0, kategori },
+            { id: "sig4", posisi: "Divalidasi oleh", nama: "RAMADHANI FAREGA FERNANDA", jabatan: "FAT MANAGER", x: 0, y: 0, kategori },
+            { id: "sig5", posisi: "Disetujui oleh", nama: "HANIIF KISBULLAH AULIA IBRAHIM", jabatan: "CEO", x: 0, y: 0, kategori },
+          ];
+        } else if (kategori === "Marketplace") {
+          signersForCategory = [
+            { id: "sig1", posisi: "Dibuat oleh", nama: "HAIDAR BAHI TAQI", jabatan: "KOOR MARKETPLACE", x: 0, y: 0, kategori },
+            { id: "sig2", posisi: "Diketahui oleh", nama: "FARHAN FAHRUDIN SUBIANTO", jabatan: "SPV MARKETPLACE", x: 0, y: 0, kategori },
+            { id: "sig3", posisi: "Divalidasi oleh", nama: "RAMADHANI FAREGA FERNANDA", jabatan: "FAT MANAGER", x: 0, y: 0, kategori },
+            { id: "sig4", posisi: "Disetujui oleh", nama: "HANIIF KISBULLAH AULIA IBRAHIM", jabatan: "CEO", x: 0, y: 0, kategori },
+          ];
+        } else {
+          signersForCategory = [
+            { posisi: "Dibuat oleh", nama: "NURUL FITRIYAH", jabatan: "Koordinator HC", x: 0, y: 0 },
+            { posisi: "Disetujui & Diverifikasi oleh,", nama: "RAMADHANI FAREGA FERNANDA", jabatan: "FAT Manager", x: 0, y: 0 }
+          ];
+        }
+      }
 
-      // Kanan
-      const rightX = doc.internal.pageSize.getWidth() - PDF_LAYOUT.marginRight - 75; // Sesuaikan agar pas di kanan
-      doc.text("Disetujui & Diverifikasi oleh,", rightX, currentY + 5);
-      
-      doc.setFont("helvetica", "bold");
-      // Underline untuk RAMADHANI FAREGA FERNANDA
-      doc.text("RAMADHANI FAREGA FERNANDA", rightX, currentY + 25);
-      doc.line(rightX, currentY + 26, rightX + doc.getTextWidth("RAMADHANI FAREGA FERNANDA"), currentY + 26);
-      
-      doc.setFont("helvetica", "normal");
-      doc.text("FAT Manager", rightX, currentY + 30);
+      const PAGE_WIDTH = doc.internal.pageSize.getWidth();
+      const totalWidth = PAGE_WIDTH - PDF_LAYOUT.marginLeft - PDF_LAYOUT.marginRight;
+      const spacing = totalWidth / signersForCategory.length;
+
+      signersForCategory.forEach((sig: any, index: number) => {
+        // Default X spreads evenly based on the number of signatures
+        const defaultX = PDF_LAYOUT.marginLeft + (spacing * index) + (spacing / 2) - 25; // 25mm is roughly half width of one block
+
+        const xPos = sig.x !== 0 ? sig.x : defaultX;
+        const yPos = sig.y !== 0 ? sig.y : currentY;
+
+        doc.setFont("helvetica", "normal");
+        if (index === 0) {
+          doc.text(`Madiun, ${dateString}`, xPos, yPos);
+        }
+        
+        doc.text(sig.posisi.replace(/\s*\(.*?\)\s*/g, ''), xPos, yPos + 5);
+        
+        doc.setFont("helvetica", "bold");
+        doc.text(sig.nama, xPos, yPos + 25);
+        
+        doc.setLineWidth(0.3);
+        doc.line(xPos, yPos + 26, xPos + doc.getTextWidth(sig.nama), yPos + 26);
+        
+        doc.setFont("helvetica", "normal");
+        doc.text(sig.jabatan, xPos, yPos + 30);
+      });
 
 
       const pdfBlob =

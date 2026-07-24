@@ -3,6 +3,8 @@ export const dynamic = "force-dynamic";
 import { AppShell } from "@/components/AppShell";
 import { createKebutuhanBulanan } from "@/app/actions/pengajuan";
 import { FinanceSubmissionLauncher } from "@/components/FinanceSubmissionLauncher";
+import { UploadInvoiceButton } from "@/components/UploadInvoiceButton";
+import { PengajuanBulananForm } from "@/components/PengajuanBulananForm";
 import { EMPLOYEE_PERMISSIONS, requireEmployeePermission } from "@/lib/auth";
 import { getVisibleEmployeeNavItems } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
@@ -41,8 +43,13 @@ export default async function PengajuanBulananPage({
     currentTab === "P3K" ? "P3K" :
     currentTab === "Operasional" ? "OPS RT" : undefined;
 
-  const whereClause: { userId: string; kategori?: string } = {
+  const date = new Date();
+  const namaBulan = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+  const currentBulan = `${namaBulan[date.getMonth()]} ${date.getFullYear()}`;
+
+  const whereClause: { userId: string; kategori?: string; bulan?: string } = {
     userId: session.user.id,
+    bulan: currentBulan,
   };
 
   if (kategoriFilter) {
@@ -61,22 +68,39 @@ export default async function PengajuanBulananPage({
         score: { not: null },
       },
       select: {
+        id: true,
         score: true,
         status: true,
         tanggalRealisasi: true,
+        nominalRealisasi: true,
         createdAt: true,
+        verifiedManager: true,
+        tipePengajuan: true,
+        invoice: true,
       },
       orderBy: { createdAt: "desc" },
     }),
   ]);
 
-  const financeStatusMap = new Map<string, { status: "PENDING" | "APPROVED" | "REJECTED"; hasTanggalRealisasi: boolean }>();
+  const financeStatusMap = new Map<string, { id: string; status: "PENDING" | "APPROVED" | "REJECTED"; isManagerApproved: boolean; nominalRealisasi: number | null; tipePengajuan: string | null; invoice: string | null }>();
   for (const submission of financeSubmissions) {
     if (submission.score && !financeStatusMap.has(submission.score)) {
       financeStatusMap.set(submission.score, {
+        id: submission.id,
         status: submission.status,
-        hasTanggalRealisasi: Boolean(submission.tanggalRealisasi),
+        isManagerApproved: submission.verifiedManager === "APPROVE",
+        nominalRealisasi: submission.nominalRealisasi,
+        tipePengajuan: submission.tipePengajuan,
+        invoice: submission.invoice,
       });
+    }
+  }
+
+  let totalSisa = 0;
+  for (const item of daftarPengajuan) {
+    const financeSubmission = financeStatusMap.get(item.id);
+    if (financeSubmission?.nominalRealisasi != null) {
+      totalSisa += (item.total - financeSubmission.nominalRealisasi);
     }
   }
 
@@ -85,17 +109,11 @@ export default async function PengajuanBulananPage({
       <Link href="/pengajuan/bulanan?baru=true" className="whitespace-nowrap rounded-full bg-purple-600 px-5 py-2.5 font-medium text-white shadow-md transition-colors hover:bg-purple-700">
         + Tambah Pengajuan
       </Link>
-      <button className="hidden whitespace-nowrap rounded-lg border border-slate-200 bg-white px-4 py-2.5 font-medium text-slate-700 transition-colors hover:bg-slate-50 sm:block">
-        Import
-      </button>
-      <button className="hidden items-center whitespace-nowrap rounded-lg border border-slate-200 bg-white px-4 py-2.5 font-medium text-slate-700 transition-colors hover:bg-slate-50 sm:flex">
-        Ekspor <span className="ml-2 opacity-60">v</span>
-      </button>
     </div>
   );
 
   return (
-    <AppShell
+    <AppShell user={session.user}
       title="Data Pengajuan Bulanan"
       subtitle="Kelola informasi, persetujuan, dan pencatatan kebutuhan bulanan di sini."
       navItems={navItems}
@@ -116,78 +134,7 @@ export default async function PengajuanBulananPage({
               </div>
 
               <div className="custom-scrollbar overflow-y-auto p-6 md:p-8">
-                <form action={createKebutuhanBulanan} className="flex flex-col gap-6">
-                  <div className="grid grid-cols-1 gap-5 md:grid-cols-2 md:gap-6">
-                    <div className="flex flex-col gap-2 md:col-span-2">
-                      <label htmlFor="kategori" className="text-sm font-semibold text-slate-700">Kategori Kebutuhan</label>
-                      <select id="kategori" name="kategori" required className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20">
-                        <option value="OPS RT">OPS RT (Operasional & Rumah Tangga)</option>
-                        <option value="ATK">ATK (Alat Tulis Kantor)</option>
-                        <option value="P3K">P3K (Obat & Medis)</option>
-                      </select>
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <label htmlFor="divisi" className="text-sm font-semibold text-slate-700">Divisi</label>
-                      <input id="divisi" name="divisi" type="text" value={dbUser?.divisi || "Belum diatur"} readOnly className="w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm text-slate-500 outline-none" />
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <label htmlFor="pic" className="text-sm font-semibold text-slate-700">PIC</label>
-                      <input id="pic" name="pic" type="text" value={dbUser?.name || dbUser?.username || "Tanpa Nama"} readOnly className="w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm text-slate-500 outline-none" />
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-2">
-                    <label htmlFor="rincian" className="text-sm font-semibold text-slate-700">Rincian / Uraian</label>
-                    <textarea
-                      id="rincian"
-                      name="rincian"
-                      placeholder="Nama barang atau uraian kebutuhan"
-                      rows={3}
-                      required
-                      className="w-full resize-y rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-5 sm:grid-cols-3 md:gap-6">
-                    <div className="flex flex-col gap-2">
-                      <label htmlFor="qty" className="text-sm font-semibold text-slate-700">QTY</label>
-                      <input id="qty" name="qty" type="number" min="1" placeholder="Jumlah" required className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20" />
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <label htmlFor="satuan" className="text-sm font-semibold text-slate-700">Satuan</label>
-                      <select id="satuan" name="satuan" required className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20">
-                        <option value="">Pilih Satuan...</option>
-                        {['UNIT', 'PCS', 'BOX', 'ORANG', 'BANDLE', 'PACK', 'BULANAN', 'MINGGUAN', 'HARI', 'JAM', 'LITER', 'KG', 'RIM', 'SET', 'VIDEO', 'FOTO', 'SHEETS', 'DUS'].map((satuan) => (
-                          <option key={satuan} value={satuan}>{satuan}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <label htmlFor="hargaSatuan" className="text-sm font-semibold text-slate-700">Harga Satuan (Rp)</label>
-                      <input id="hargaSatuan" name="hargaSatuan" type="number" min="0" step="1" placeholder="Harga" required className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20" />
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-2">
-                    <label htmlFor="catatanTambahan" className="text-sm font-semibold text-slate-700">Catatan Tambahan (Opsional)</label>
-                    <textarea
-                      id="catatanTambahan"
-                      name="catatanTambahan"
-                      placeholder="Keterangan tambahan jika ada"
-                      rows={2}
-                      className="w-full resize-y rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20"
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row">
-                    <button type="submit" className="w-full rounded-xl bg-purple-600 px-6 py-3 font-semibold text-white shadow-md transition-all hover:bg-purple-700 active:scale-[0.98] sm:w-auto">
-                      Simpan Kebutuhan
-                    </button>
-                    <Link href="/pengajuan/bulanan" className="w-full rounded-xl border border-slate-200 bg-white px-6 py-3 text-center font-semibold text-slate-700 transition-all hover:bg-slate-50 sm:w-auto">
-                      Batal
-                    </Link>
-                  </div>
-                </form>
+                <PengajuanBulananForm dbUser={dbUser} totalSisa={totalSisa} />
               </div>
             </div>
           </div>
@@ -206,10 +153,15 @@ export default async function PengajuanBulananPage({
                 </Link>
               ))}
             </div>
-            <button className="hidden items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 sm:flex">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
-              Filter
-            </button>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 rounded-lg bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-700 shadow-sm border border-emerald-100">
+                Total Sisa: {formatCurrency(totalSisa)}
+              </div>
+              <button className="hidden items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 sm:flex">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+                Filter
+              </button>
+            </div>
           </div>
 
           {daftarPengajuan.length === 0 ? (
@@ -230,6 +182,7 @@ export default async function PengajuanBulananPage({
                     <th className="px-4 py-4 text-center font-semibold">SATUAN</th>
                     <th className="px-4 py-4 text-right font-semibold">HARGA (Rp)</th>
                     <th className="px-4 py-4 text-right font-semibold">TOTAL (Rp)</th>
+                    <th className="px-4 py-4 text-right font-semibold">REALISASI (Rp)</th>
                     <th className="px-4 py-4 font-semibold">CATATAN</th>
                   </tr>
                 </thead>
@@ -256,8 +209,18 @@ export default async function PengajuanBulananPage({
                                 sourceId={item.id}
                                 sourceType="bulanan"
                                 submittedStatus={financeSubmission?.status}
-                                hasTanggalRealisasi={financeSubmission?.hasTanggalRealisasi}
+                                isManagerApproved={financeSubmission?.isManagerApproved}
                                 userEmail={session.user.email ?? ""}
+                                userName={session.user.name ?? ""}
+                              />
+                            </div>
+                          )}
+                          {financeSubmission?.tipePengajuan === "KASBON" && (
+                            <div className="mt-3 flex justify-center">
+                              <UploadInvoiceButton
+                                id={financeSubmission.id}
+                                initialValue={financeSubmission.invoice}
+                                isKasbon={true}
                               />
                             </div>
                           )}
@@ -277,6 +240,16 @@ export default async function PengajuanBulananPage({
                         <td className="px-4 py-4 text-center text-slate-600">{item.satuan}</td>
                         <td className="px-4 py-4 text-right text-slate-600">{formatCurrency(item.hargaSatuan)}</td>
                         <td className="px-4 py-4 text-right font-bold text-slate-900">{formatCurrency(item.total)}</td>
+                        <td className="px-4 py-4 text-right">
+                          <div className="font-bold text-emerald-700">
+                            {financeSubmission?.nominalRealisasi != null ? formatCurrency(financeSubmission.nominalRealisasi) : "-"}
+                          </div>
+                          {financeSubmission?.nominalRealisasi != null && (
+                            <div className="mt-1 text-xs font-medium text-slate-500">
+                              Sisa: {formatCurrency(item.total - financeSubmission.nominalRealisasi)}
+                            </div>
+                          )}
+                        </td>
                         <td className="min-w-[200px] whitespace-normal px-4 py-4 text-xs">
                           {item.catatanTambahan && (
                             <div className="mb-1.5">

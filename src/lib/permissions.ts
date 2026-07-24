@@ -25,8 +25,8 @@ export const SUPER_ADMIN_PERMISSION_OPTIONS = [
   },
   {
     permission: "dashboard.users",
-    label: "Kelola Pengguna",
-    href: "/dashboard/users",
+    label: "Setting",
+    href: "/dashboard/setting",
     description: "Akses pengaturan akun dan izin menu.",
   },
 ] as const;

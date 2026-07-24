@@ -16,7 +16,7 @@ export default async function DashboardKaryawanPage() {
   const rejected = await prisma.pengajuan.count({ where: { userId: session.user.id, status: "REJECTED" } });
 
   return (
-    <AppShell
+    <AppShell user={session.user}
       title="Dashboard Karyawan"
       subtitle="Ringkasan aktivitas dan status pengajuan Anda."
       navItems={navItems}

@@ -37,7 +37,7 @@ export default async function Dashboard() {
     ]);
 
   return (
-    <AppShell
+    <AppShell user={session.user}
       title="Dashboard Approval"
       subtitle="Pantau pengajuan masuk dan proses approval dari satu panel admin."
       navItems={navItems}

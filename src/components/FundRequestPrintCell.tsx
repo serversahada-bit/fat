@@ -30,12 +30,15 @@ type FundRequestPrintData = {
   userName?: string | null;
   verifiedFinance?: string | null;
   timestampVerifyFinance?: string | null;
+  verifiedManager?: string | null;
+  timestampVerifyManager?: string | null;
 };
 
 type FundRequestPrintCellProps = {
   id: string;
   initialValue: string | null;
   data: FundRequestPrintData;
+  signatures?: any[];
 };
 
 const TYPE_OPTIONS = ["KASBON", "NON KASBON"];
@@ -131,7 +134,7 @@ function loadImageAsDataUrl(src: string) {
   });
 }
 
-async function createFundRequestPdf(data: FundRequestPrintData, tipePengajuan: string) {
+async function createFundRequestPdf(data: FundRequestPrintData, tipePengajuan: string, signatures: any[] = []) {
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4", compress: true });
   const title = tipePengajuan === "KASBON" ? "FORMULIR PERMOHONAN DANA KASBON" : "FORMULIR PERMOHONAN DANA";
   const nominal = data.nominalRealisasi ?? data.nominalTransaksi ?? null;
@@ -143,171 +146,214 @@ async function createFundRequestPdf(data: FundRequestPrintData, tipePengajuan: s
   const verifiedBy = data.verifiedFinance ? `3 0524 0106 - ${FINANCE_EMAIL}` : "";
   const logo = await loadImageAsDataUrl("/favicon.ico");
 
-  doc.setLineWidth(0.25);
-  doc.rect(3, 3, 291, 204);
-
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(18);
-  doc.text(title, 6, 12);
-
+  doc.setFontSize(14);
+  doc.text(title, 12, 28);
+  
+  doc.setDrawColor(0, 0, 0);
+  doc.setLineWidth(0.25);
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
-  doc.text("Tanggal Permohonan", 6, 22);
-  doc.text(":", 51, 22);
+  doc.text("Tanggal Permohonan", 12, 36);
+  doc.text(":", 48, 36);
+  doc.text(formatDate(data.tanggalPermohonan), 52, 36);
+  
+  doc.text("Kepada", 12, 42);
+  doc.text(":", 48, 42);
   doc.setFont("helvetica", "bold");
-  doc.text(formatDate(data.tanggalPermohonan), 56, 22);
-  doc.setFont("helvetica", "normal");
-  doc.text("Kepada", 6, 30);
-  doc.text(":", 51, 30);
-  doc.setFont("helvetica", "bold");
-  doc.text("FINANCE", 56, 30);
+  doc.text("FINANCE", 52, 42);
 
   if (logo) {
-    doc.addImage(logo, "PNG", 267, 6, 18, 18);
+    doc.addImage(logo, "PNG", 265, 22, 16, 16);
   } else {
     doc.setTextColor(98, 0, 180);
-    doc.setFontSize(16);
-    doc.text("SAHADA", 262, 18);
+    doc.setFontSize(14);
+    doc.text("SAHADA", 265, 30);
     doc.setTextColor(0, 0, 0);
   }
 
-  doc.setFontSize(9);
-  doc.rect(6, 34, 282, 21);
+  // Outer Table Box
+  doc.rect(10, 20, 277, 180);
+  
+  // Row 0 separator
+  doc.line(10, 46, 287, 46);
+
+  // ROW 1: Tipe Transaksi
   doc.setFont("helvetica", "bold");
-  doc.text("Tipe Transaksi", 8, 43);
+  doc.text("Tipe Transaksi", 12, 53);
   doc.setFont("helvetica", "normal");
-  doc.text(":", 51, 43);
-  drawCheckbox(doc, 56, 41.5, "Tagihan", isSelected(transaksi, "TAGIHAN"));
-  drawCheckbox(doc, 90, 41.5, "Overbooking", isSelected(transaksi, "OVERBOOKING"), true);
-  drawCheckbox(doc, 132, 41.5, "Iklan", isSelected(transaksi, "IKLAN"));
-  drawCheckbox(doc, 160, 41.5, "Operasional", isSelected(transaksi, "OPERASIONAL"));
-  drawCheckbox(doc, 205, 41.5, "Pajak", isSelected(transaksi, "PAJAK"));
-  doc.text("Nomor Bukti :", 248, 43);
-  drawDottedLine(doc, 270, 43.5, 15, data.nomorBukti || data.nomorCetakForm || "");
+  doc.text(":", 48, 53);
   doc.setFont("helvetica", "italic");
-  doc.text("(silang salah satu)", 8, 51);
+  doc.text("(silang salah satu)", 12, 59);
   doc.setFont("helvetica", "normal");
-  drawCheckbox(doc, 56, 49.5, "Payroll", isSelected(transaksi, "PAYROLL"));
+  
+  drawCheckbox(doc, 52, 50, "Tagihan", isSelected(transaksi, "TAGIHAN"));
+  drawCheckbox(doc, 90, 50, "Overbooking", isSelected(transaksi, "OVERBOOKING"), true);
+  drawCheckbox(doc, 130, 50, "Iklan", isSelected(transaksi, "IKLAN"));
+  drawCheckbox(doc, 160, 50, "Operasional", isSelected(transaksi, "OPERASIONAL"));
+  drawCheckbox(doc, 200, 50, "Pajak", isSelected(transaksi, "PAJAK"));
+  doc.text("Nomor Bukti :", 235, 53);
+  drawDottedLine(doc, 258, 53, 27, data.nomorBukti || data.nomorCetakForm || "");
+  
+  drawCheckbox(doc, 52, 58, "Payroll", isSelected(transaksi, "PAYROLL"));
   const otherTransaction = !["TAGIHAN", "OVERBOOKING", "IKLAN", "OPERASIONAL", "PAJAK", "PAYROLL"].some((item) => transaksi.includes(item));
-  drawCheckbox(doc, 90, 49.5, "Transaksi Lainnya :", otherTransaction && Boolean(transaksi));
-  drawDottedLine(doc, 132, 51.5, 75, otherTransaction ? data.tipeTransaksi || "" : "");
+  drawCheckbox(doc, 90, 58, "Transaksi Lainnya :", otherTransaction && Boolean(transaksi));
+  drawDottedLine(doc, 125, 59, 100, otherTransaction ? data.tipeTransaksi || "" : "");
 
-  doc.rect(6, 57, 282, 13);
+  // ROW 2: Tipe Pembayaran
+  doc.line(10, 64, 287, 64);
   doc.setFont("helvetica", "bold");
-  doc.text("Tipe Pembayaran", 8, 65);
+  doc.text("Tipe Pembayaran", 12, 72);
   doc.setFont("helvetica", "normal");
-  doc.text(":", 51, 65);
-  drawCheckbox(doc, 56, 63.5, "Tunai", isSelected(pembayaran, "TUNAI"));
-  drawCheckbox(doc, 90, 63.5, "Transfer Bank", isSelected(pembayaran, "TRANSFER"));
-  drawCheckbox(doc, 132, 63.5, "Cek/BG", isSelected(pembayaran, "CEK") || isSelected(pembayaran, "BG"));
-  drawCheckbox(doc, 160, 63.5, "Virtual Account", isSelected(pembayaran, "VIRTUAL"));
+  doc.text(":", 48, 72);
+  
+  drawCheckbox(doc, 52, 69.5, "Tunai", isSelected(pembayaran, "TUNAI"));
+  drawCheckbox(doc, 90, 69.5, "Transfer Bank", isSelected(pembayaran, "TRANSFER"));
+  drawCheckbox(doc, 130, 69.5, "Cek/BG", isSelected(pembayaran, "CEK") || isSelected(pembayaran, "BG"));
+  drawCheckbox(doc, 160, 69.5, "Virtual Account", isSelected(pembayaran, "VIRTUAL"));
   const otherPayment = !["TUNAI", "TRANSFER", "CEK", "BG", "VIRTUAL"].some((item) => pembayaran.includes(item));
-  drawCheckbox(doc, 205, 63.5, "Lainnya", otherPayment && Boolean(pembayaran));
-  doc.text(":", 242, 65);
-  drawDottedLine(doc, 248, 65.5, 38, otherPayment ? data.tipePembayaran || "" : "");
+  drawCheckbox(doc, 200, 69.5, "Lainnya", otherPayment && Boolean(pembayaran));
+  doc.text(":", 220, 72);
+  drawDottedLine(doc, 225, 72.5, 60, otherPayment ? data.tipePembayaran || "" : "");
 
-  doc.rect(6, 72, 139, 44);
-  doc.rect(145, 72, 143, 44);
+  // ROW 3: Informasi Penerima
+  doc.line(10, 76, 287, 76);
+  doc.line(160, 76, 160, 112);
+  
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(12);
-  doc.text("Informasi Penerima", 8, 80);
+  doc.setFontSize(11);
+  doc.text("Informasi Penerima", 12, 82);
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
-  doc.text("Jenis Penerima", 8, 88);
-  doc.text(":", 51, 88);
-  drawCheckbox(doc, 56, 86.5, "Perorangan", isSelected(penerima, "PERORANGAN"));
-  drawCheckbox(doc, 91, 86.5, "Perusahaan", isSelected(penerima, "PERUSAHAAN"));
-  drawCheckbox(doc, 126, 86.5, "Pemerintah", isSelected(penerima, "PEMERINTAH"));
-  drawLabelLine(doc, "Nama", data.namaPenerima || "", 8, 98, 43, 88);
-  drawLabelLine(doc, "Bank", data.detailBankPenerima || "", 8, 106, 43, 88);
-  drawLabelLine(doc, "Nomor Rekening / VA", data.nomorRekeningHp || "", 8, 114, 43, 88);
-
-  doc.setDrawColor(0, 0, 0);
-  doc.rect(148, 75, 132, 16);
+  doc.text("Jenis Penerima", 12, 89);
+  doc.text(":", 48, 89);
+  drawCheckbox(doc, 52, 86, "Perorangan", isSelected(penerima, "PERORANGAN"));
+  drawCheckbox(doc, 85, 86, "Perusahaan", isSelected(penerima, "PERUSAHAAN"));
+  drawCheckbox(doc, 115, 86, "Pemerintah", isSelected(penerima, "PEMERINTAH"));
+  
+  drawLabelLine(doc, "Nama", data.namaPenerima || "", 12, 96, 36, 105);
+  drawLabelLine(doc, "Bank", data.detailBankPenerima || "", 12, 103, 36, 105);
+  drawLabelLine(doc, "Nomor Rekening / VA", data.nomorRekeningHp || "", 12, 110, 36, 105);
+  
+  doc.rect(162, 78, 123, 12);
   doc.setTextColor(0, 80, 216);
   doc.setFont("helvetica", "bold");
-  doc.text("MOHON BUKTI TRANSFER DIKIRIM KE :", 150, 81);
-  doc.text(data.email || "", 150, 88);
-  doc.setTextColor(0, 0, 0);
+  doc.text("MOHON BUKTI TRANSFER DIKIRIM KE :", 164, 83);
   doc.setFont("helvetica", "normal");
-  doc.text("Nominal", 150, 99);
-  doc.text(":", 191, 99);
-  doc.text("Rp", 199, 99);
-  drawDottedLine(doc, 210, 99.7, 66, formatNumber(nominal));
-  doc.text("Berita Transaksi", 150, 107);
-  doc.text(":", 191, 107);
-  addWrappedText(doc, data.keterangan || "", 199, 107, 78, 4);
-  doc.text("/ Keterangan", 150, 115);
-  doc.text(":", 191, 115);
-  drawDottedLine(doc, 199, 115.7, 78, "");
-
-  doc.rect(6, 119, 282, 36);
-  doc.line(154, 119, 154, 155);
-  doc.line(232, 119, 232, 155);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(12);
-  doc.text("Verifikasi Pajak", 8, 129);
-  doc.setTextColor(255, 0, 0);
-  doc.text("TRANSAKSI BUKAN OBJEK PPH", 58, 129);
+  doc.text(data.email || "", 164, 88);
   doc.setTextColor(0, 0, 0);
+  
+  doc.text("Nominal", 162, 96);
+  doc.text(":", 190, 96);
+  doc.text("Rp", 195, 96);
+  drawDottedLine(doc, 203, 96.5, 82, formatNumber(nominal));
+  doc.text("Berita Transaksi", 162, 103);
+  doc.text(":", 190, 103);
+  addWrappedText(doc, data.keterangan || "", 195, 103, 90, 4);
+  doc.text("/ Keterangan", 162, 110);
+  doc.text(":", 190, 110);
+  drawDottedLine(doc, 195, 110.5, 90, "");
+
+  // ROW 4: Verifikasi Pajak
+  doc.line(10, 112, 287, 112);
+  doc.line(225, 112, 225, 142);
+  
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.text("Verifikasi Pajak", 12, 118);
+  doc.setTextColor(255, 0, 0);
+  doc.text("TRANSAKSI BUKAN OBJEK PPH", 65, 118);
+  doc.setTextColor(0, 0, 0);
+  
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
-  drawLabelLine(doc, "NIK / NPWP", "", 8, 139, 43, 78);
-  drawLabelLine(doc, "Nilai Pajak Terutang", formatNumber(data.nilaiPajakTerutang), 8, 148, 43, 78);
-  drawCheckbox(doc, 160, 135, "PPh Pasal 21", isSelected(pajak, "PASAL 21"));
-  drawCheckbox(doc, 160, 145, "PPh Unifikasi", isSelected(pajak, "UNIFIKASI"));
-  drawCheckbox(doc, 205, 135, "SKB", isSelected(pajak, "SKB"));
-  drawCheckbox(doc, 205, 145, "PPN", isSelected(pajak, "PPN") || normalize(data.adaPpn) === "YA");
+  drawLabelLine(doc, "NIK / NPWP", "", 12, 128, 36, 110);
+  drawLabelLine(doc, "Nilai Pajak Terutang", formatNumber(data.nilaiPajakTerutang), 12, 137, 36, 110);
+  
+  drawCheckbox(doc, 170, 124, "PPh Pasal 21", isSelected(pajak, "PASAL 21"));
+  drawCheckbox(doc, 170, 133, "PPh Unifikasi", isSelected(pajak, "UNIFIKASI"));
+  drawCheckbox(doc, 205, 124, "SKB", isSelected(pajak, "SKB"));
+  drawCheckbox(doc, 205, 133, "PPN", isSelected(pajak, "PPN") || normalize(data.adaPpn) === "YA");
+  
   doc.setFont("helvetica", "bold");
-  doc.text("VERIFIKASI TAX", 249, 127, { align: "center" });
+  doc.text("VERIFIKASI TAX", 256, 118, { align: "center" });
   doc.setFont("helvetica", "normal");
-  doc.text(TAX_PHONE, 235, 136);
+  doc.text(TAX_PHONE, 228, 128);
   doc.setFont("helvetica", "italic");
-  doc.text(TAX_EMAIL, 235, 145);
-  doc.text(formatDateTime(data.timestampVerifyTax), 235, 152);
+  doc.text(TAX_EMAIL, 228, 134);
+  doc.text(formatDateTime(data.timestampVerifyTax), 228, 140);
 
-  doc.rect(6, 158, 282, 8);
+  // ROW 5: INFORMASI SUMBER DANA Title
+  doc.line(10, 142, 287, 142);
   doc.setFont("helvetica", "bold");
-  doc.text("INFORMASI SUMBER DANA & PEMBAYARAN", 147, 163.5, { align: "center" });
-  doc.setFont("helvetica", "normal");
-  doc.text("NOMINAL BRUTO", 8, 174);
-  doc.text(":", 51, 174);
-  doc.text("Rp", 58, 174);
-  drawDottedLine(doc, 68, 174.7, 42, formatNumber(data.nominalTransaksi));
-  doc.text("POTONGAN", 8, 183);
-  doc.text(":", 51, 183);
-  doc.text("Rp", 58, 183);
-  drawDottedLine(doc, 68, 183.7, 42, formatNumber(data.nilaiPajakTerutang));
-  doc.text("REKENING KAS", 135, 174);
-  doc.text(":", 190, 174);
-  drawDottedLine(doc, 198, 174.7, 50, data.bankOut || "");
-  doc.text("TOTAL YANG DIBAYAR", 135, 183);
-  doc.text(":", 190, 183);
-  drawDottedLine(doc, 198, 183.7, 50, formatNumber(nominal));
+  doc.text("INFORMASI SUMBER DANA & PEMBAYARAN", 148.5, 147, { align: "center" });
 
-  doc.rect(6, 189, 282, 15);
-  doc.line(100, 189, 100, 204);
-  doc.line(194, 189, 194, 204);
+  // ROW 6: Sumber Dana Data
+  doc.line(10, 150, 287, 150);
+  doc.setFont("helvetica", "normal");
+  doc.text("NOMINAL BRUTO", 12, 157);
+  doc.text(":", 48, 157);
+  doc.text("Rp", 52, 157);
+  drawDottedLine(doc, 62, 157.5, 50, formatNumber(data.nominalTransaksi));
+  
+  doc.text("POTONGAN", 12, 164);
+  doc.text(":", 48, 164);
+  doc.text("Rp", 52, 164);
+  drawDottedLine(doc, 62, 164.5, 50, formatNumber(data.nilaiPajakTerutang));
+  
+  doc.text("REKENING KAS", 130, 157);
+  doc.text(":", 185, 157);
+  drawDottedLine(doc, 192, 157.5, 75, data.bankOut || "");
+  
+  doc.text("TOTAL YANG DIBAYAR", 130, 164);
+  doc.text(":", 185, 164);
+  drawDottedLine(doc, 192, 164.5, 75, formatNumber(nominal));
+
+  // ROW 7: Signatures
+  doc.line(10, 166, 287, 166);
+  doc.line(102, 166, 102, 200);
+  doc.line(194, 166, 194, 200);
+  
   doc.setFont("helvetica", "bold");
-  doc.text("APPLIED BY SYSTEM", 53, 194, { align: "center" });
-  doc.text("VERIFIED BY SYSTEM", 147, 194, { align: "center" });
-  doc.text("Pengesahan oleh Atasan", 241, 194, { align: "center" });
-  doc.line(6, 196, 288, 196);
+  doc.text("APPLIED BY SYSTEM", 56, 171, { align: "center" });
+  doc.text("VERIFIED BY SYSTEM", 148, 171, { align: "center" });
+  doc.text("Pengesahan oleh Atasan", 240.5, 171, { align: "center" });
+  doc.line(10, 174, 287, 174);
+  
   doc.setFont("helvetica", "normal");
-  doc.text("DETAIL USER :", 8, 201);
+  doc.text("DETAIL USER :", 12, 180);
   doc.setFont("helvetica", "italic");
-  doc.text(appliedBy, 31, 201);
-  doc.text(formatDateTime(data.timestamp), 8, 205);
+  doc.text(appliedBy, 12, 186);
+  doc.text(formatDateTime(data.timestamp), 12, 192);
+  
   doc.setFont("helvetica", "normal");
-  doc.text("DETAIL USER :", 102, 201);
+  doc.text("DETAIL USER :", 104, 180);
   doc.setFont("helvetica", "italic");
-  doc.text(verifiedBy, 125, 201);
-  doc.text(formatDateTime(data.timestampVerifyFinance), 102, 205);
+  doc.text(verifiedBy, 104, 186);
+  doc.text(formatDateTime(data.timestampVerifyFinance), 104, 192);
+
+  const managerSig = signatures.find((s) => s.posisi.includes("Disetujui") || s.jabatan.toUpperCase().includes("MANAGER"));
+  if (managerSig) {
+    doc.setTextColor(37, 99, 235);
+    doc.setFont("helvetica", "bold");
+    const nameStr = managerSig.nama;
+    doc.text(nameStr, 240.5, 190, { align: "center" });
+    const nameWidth = doc.getTextWidth(nameStr);
+    doc.setLineWidth(0.3);
+    doc.setDrawColor(37, 99, 235);
+    doc.line(240.5 - nameWidth / 2, 191, 240.5 + nameWidth / 2, 191);
+    
+    doc.setFont("helvetica", "normal");
+    doc.text(managerSig.jabatan, 240.5, 195, { align: "center" });
+    
+    doc.setTextColor(0, 0, 0);
+    doc.setDrawColor(0, 0, 0);
+  }
 
   return doc;
 }
 
-export function FundRequestPrintCell({ id, initialValue, data }: FundRequestPrintCellProps) {
+export function FundRequestPrintCell({ id, initialValue, data, signatures = [] }: FundRequestPrintCellProps) {
   const [value, setValue] = useState(initialValue || "");
   const [isPending, startTransition] = useTransition();
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -333,7 +379,7 @@ export function FundRequestPrintCell({ id, initialValue, data }: FundRequestPrin
 
     setIsGenerating(true);
     try {
-      const doc = await createFundRequestPdf(data, value);
+      const doc = await createFundRequestPdf(data, value, signatures);
       const nextUrl = URL.createObjectURL(doc.output("blob"));
       if (previewUrl) URL.revokeObjectURL(previewUrl);
       setPdfDocument(doc);

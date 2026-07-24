@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { AppShell } from "@/components/AppShell";
 import { createKebutuhanIklan } from "@/app/actions/pengajuan";
 import { FinanceSubmissionLauncher } from "@/components/FinanceSubmissionLauncher";
+import { UploadInvoiceButton } from "@/components/UploadInvoiceButton";
 import { EMPLOYEE_PERMISSIONS, requireEmployeePermission } from "@/lib/auth";
 import { getVisibleEmployeeNavItems } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
@@ -62,21 +63,28 @@ export default async function PengajuanIklanPage({
         score: { not: null },
       },
       select: {
+        id: true,
         score: true,
         status: true,
         tanggalRealisasi: true,
         createdAt: true,
+        verifiedManager: true,
+        tipePengajuan: true,
+        invoice: true,
       },
       orderBy: { createdAt: "desc" },
     }),
   ]);
 
-  const financeStatusMap = new Map<string, { status: "PENDING" | "APPROVED" | "REJECTED"; hasTanggalRealisasi: boolean }>();
+  const financeStatusMap = new Map<string, { id: string; status: "PENDING" | "APPROVED" | "REJECTED"; isManagerApproved: boolean; tipePengajuan: string | null; invoice: string | null }>();
   for (const submission of financeSubmissions) {
     if (submission.score && !financeStatusMap.has(submission.score)) {
       financeStatusMap.set(submission.score, {
+        id: submission.id,
         status: submission.status,
-        hasTanggalRealisasi: Boolean(submission.tanggalRealisasi),
+        isManagerApproved: submission.verifiedManager === "APPROVE",
+        tipePengajuan: submission.tipePengajuan,
+        invoice: submission.invoice,
       });
     }
   }
@@ -96,7 +104,7 @@ export default async function PengajuanIklanPage({
   );
 
   return (
-    <AppShell
+    <AppShell user={session.user}
       title="Data Kebutuhan Iklan"
       subtitle="Kelola informasi, persetujuan, dan pencatatan kebutuhan iklan di sini."
       navItems={navItems}
@@ -125,6 +133,8 @@ export default async function PengajuanIklanPage({
                         <option value="Meta Ads">Meta Ads (Facebook/Instagram)</option>
                         <option value="Google Ads">Google Ads</option>
                         <option value="TikTok Ads">TikTok Ads</option>
+                        <option value="Snack Video">Snack Video</option>
+                        <option value="Marketplace">Marketplace</option>
                         <option value="Lainnya">Lainnya</option>
                       </select>
                     </div>
@@ -258,8 +268,18 @@ export default async function PengajuanIklanPage({
                                 sourceId={item.id}
                                 sourceType="iklan"
                                 submittedStatus={financeSubmission?.status}
-                                hasTanggalRealisasi={financeSubmission?.hasTanggalRealisasi}
+                                isManagerApproved={financeSubmission?.isManagerApproved}
                                 userEmail={session.user.email ?? ""}
+                                userName={session.user.name ?? ""}
+                              />
+                            </div>
+                          )}
+                          {financeSubmission?.tipePengajuan === "KASBON" && (
+                            <div className="mt-3 flex justify-center">
+                              <UploadInvoiceButton
+                                id={financeSubmission.id}
+                                initialValue={financeSubmission.invoice}
+                                isKasbon={true}
                               />
                             </div>
                           )}

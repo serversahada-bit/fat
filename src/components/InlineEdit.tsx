@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { updateSemuaField } from "@/app/actions/semua_pengajuan";
 
 interface InlineEditProps {
   id: string;
   field: string;
   initialValue: string | null;
-  type: "text" | "checkbox" | "select" | "date" | "number";
+  type: "text" | "checkbox" | "select" | "date" | "number" | "datetime-local";
   options?: string[];
   placeholder?: string;
 }
@@ -16,6 +16,12 @@ export function InlineEdit({ id, field, initialValue, type, options = [], placeh
   const [value, setValue] = useState(initialValue || "");
   const [isPending, startTransition] = useTransition();
   const [isEditing, setIsEditing] = useState(false);
+
+  useEffect(() => {
+    if (!isEditing) {
+      setValue(initialValue || "");
+    }
+  }, [initialValue, isEditing]);
 
   const handleUpdate = (newValue: string) => {
     setValue(newValue);
@@ -64,43 +70,37 @@ export function InlineEdit({ id, field, initialValue, type, options = [], placeh
     );
   }
 
-  if (type === "date" || type === "number") {
-    return (
-      <input
-        type={type}
-        value={value}
-        disabled={isPending}
-        placeholder={placeholder}
-        onChange={(e) => setValue(e.target.value)}
-        onBlur={(e) => {
-          if (e.target.value !== (initialValue || "")) {
-            handleUpdate(e.target.value);
-          }
-        }}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            e.currentTarget.blur();
-          }
-        }}
-        className="w-full min-w-[130px] rounded-md border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-700 outline-none transition-all focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20 disabled:opacity-50"
-      />
-    );
-  }
+  if (!isEditing && (type === "text" || type === "date" || type === "number" || type === "datetime-local")) {
+    let displayValue = value || placeholder || "Kosong";
+    if (value) {
+      if (type === "number") {
+        displayValue = new Intl.NumberFormat("id-ID").format(Number(value));
+      } else if (type === "date" || type === "datetime-local") {
+        const dateObj = new Date(value);
+        if (!isNaN(dateObj.getTime())) {
+          displayValue = new Intl.DateTimeFormat("id-ID", {
+            dateStyle: "medium",
+            timeStyle: type === "datetime-local" ? "medium" : undefined,
+          }).format(dateObj);
+        } else {
+          displayValue = value;
+        }
+      }
+    }
 
-  if (!isEditing && type === "text") {
     return (
       <div
-        onClick={() => setIsEditing(true)}
+        onDoubleClick={() => setIsEditing(true)}
         className={`min-h-[32px] min-w-[100px] cursor-text rounded px-2 py-1.5 transition-colors hover:bg-slate-100 ${!value ? "italic text-slate-400" : "text-slate-700"}`}
       >
-        {value || placeholder || "Kosong"}
+        {displayValue}
       </div>
     );
   }
 
   return (
     <input
-      type="text"
+      type={type}
       value={value}
       disabled={isPending}
       placeholder={placeholder}

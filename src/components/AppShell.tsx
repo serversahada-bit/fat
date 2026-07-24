@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { signOut, useSession } from "next-auth/react";
+import { signOut } from "next-auth/react";
 import { useState } from "react";
 import { usePathname } from "next/navigation";
 
@@ -11,11 +11,12 @@ type NavItem = {
 };
 
 type AppShellProps = {
-  title: string;
-  subtitle: string;
+  title?: string;
+  subtitle?: string;
   navItems: NavItem[];
   headerActions?: React.ReactNode;
   children: React.ReactNode;
+  user: any;
 };
 
 export function AppShell({
@@ -24,17 +25,16 @@ export function AppShell({
   navItems,
   headerActions,
   children,
+  user,
 }: AppShellProps) {
-  const { data: session } = useSession();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const pathname = usePathname();
 
-  const username =
-    session?.user?.username || session?.user?.name || session?.user?.email || "User";
+  const username = user?.username || user?.name || user?.email || "User";
   const roleLabel =
-    session?.user?.role === "SUPER_ADMIN"
+    user?.role === "SUPER_ADMIN"
       ? "Super Admin"
-      : session?.user?.role === "ADMIN"
+      : user?.role === "ADMIN"
         ? "Admin"
         : "Karyawan";
   const initial = username.charAt(0).toUpperCase();
@@ -137,17 +137,19 @@ export function AppShell({
       )}
 
       <main className="min-w-0 w-full flex-1 animate-fade-in overflow-x-hidden p-4 md:p-8">
-        <section className="mb-6 flex flex-col justify-between gap-4 md:mb-10 md:flex-row md:items-start">
-          <div>
-            <h1 className="mb-2 text-2xl font-bold text-slate-900 md:text-3xl">{title}</h1>
-            <p className="max-w-2xl text-sm leading-relaxed text-slate-500 md:text-base">{subtitle}</p>
-          </div>
-          {headerActions && (
-            <div className="flex w-full items-center gap-3 overflow-x-auto whitespace-nowrap pb-2 md:w-auto md:pb-0">
-              {headerActions}
+        {(title || subtitle || headerActions) && (
+          <section className="mb-6 flex flex-col justify-between gap-4 md:mb-10 md:flex-row md:items-start">
+            <div>
+              {title && <h1 className="mb-2 text-2xl font-bold text-slate-900 md:text-3xl">{title}</h1>}
+              {subtitle && <p className="max-w-2xl text-sm leading-relaxed text-slate-500 md:text-base">{subtitle}</p>}
             </div>
-          )}
-        </section>
+            {headerActions && (
+              <div className="flex w-full items-center gap-3 overflow-x-auto whitespace-nowrap pb-2 md:w-auto md:pb-0">
+                {headerActions}
+              </div>
+            )}
+          </section>
+        )}
         {children}
       </main>
     </div>

@@ -150,6 +150,8 @@ model semua_pengajuan {
   email                   String?
   tanggalPermohonan       DateTime?
   tipeTransaksi           String?
+  namaPemohon             String?
+  emailVendor             String?
   tipePembayaran          String?
   informasiPenerima       String?
   namaPenerima            String?
@@ -175,6 +177,8 @@ model semua_pengajuan {
   adaPpn                  String?
   verifiedTax             String?
   timestampVerifyTax      DateTime?
+  verifiedManager         String?
+  timestampVerifyManager  DateTime?
   tanggalRealisasi        DateTime?
   nominalRealisasi        Float?
   invoice                 String?
@@ -188,4 +192,38 @@ model semua_pengajuan {
 
   @@index([status])
   @@index([userId])
+}
+
+model master_bank {
+  id        String   @id @default(cuid())
+  nama      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model master_pajak {
+  id         String   @id @default(cuid())
+  jenisPajak String
+  persentase Float
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model master_nama {
+  id        String   @id @default(cuid())
+  nama      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model master_canvas {
+  id        String   @id @default(cuid())
+  kategori  String   @default("Default")
+  posisi    String
+  nama      String
+  jabatan   String
+  x         Float    @default(0)
+  y         Float    @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

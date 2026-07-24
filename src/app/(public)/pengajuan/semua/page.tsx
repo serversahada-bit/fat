@@ -32,7 +32,7 @@ export default async function KaryawanSemuaPage({
   }
 
   return (
-    <AppShell
+    <AppShell user={session.user}
       title="Ajukan ke Finance"
       subtitle="Lengkapi data master transaksi Anda."
       navItems={navItems}
