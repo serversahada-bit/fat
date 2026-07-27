@@ -231,7 +231,7 @@ export function PDFEditor({ initialPdfUrl }: { initialPdfUrl?: string }) {
                     onDragStop={(e, d) => updateText(text.id, { x: d.x, y: d.y })}
                     enableResizing={false}
                     bounds="parent"
-                    onClick={(e) => { e.stopPropagation(); setSelectedId(text.id); }}
+                    onClick={(e: any) => { e.stopPropagation(); setSelectedId(text.id); }}
                   >
                     <div 
                       style={{ 
@@ -264,7 +264,7 @@ export function PDFEditor({ initialPdfUrl }: { initialPdfUrl?: string }) {
                       } : i))
                     }}
                     bounds="parent"
-                    onClick={(e) => { e.stopPropagation(); setSelectedId(img.id); }}
+                    onClick={(e: any) => { e.stopPropagation(); setSelectedId(img.id); }}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={img.dataUrl} alt="Overlay" className="h-full w-full object-contain pointer-events-none select-none" />

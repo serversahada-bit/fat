@@ -62,6 +62,7 @@ export default async function KaryawanSemuaPage({
                   defaultNominal={defNominal}
                   defaultTanggal={today}
                   userEmail={session.user.email ?? ""}
+                  userName={session.user.name ?? ""}
                 />
               </div>
             </div>

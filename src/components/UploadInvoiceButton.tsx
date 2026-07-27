@@ -32,7 +32,7 @@ export function UploadInvoiceButton({ id, initialValue, isKasbon }: { id: string
   return (
     <div className="flex w-full min-w-[120px] flex-col items-center justify-center gap-1.5">
       {isUrl ? (
-        <Link href={initialValue} target="_blank" className="truncate text-xs font-medium text-blue-600 hover:underline">
+        <Link href={initialValue!} target="_blank" className="truncate text-xs font-medium text-blue-600 hover:underline">
           Lihat Invoice
         </Link>
       ) : (

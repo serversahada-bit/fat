@@ -821,19 +821,19 @@ export function ExportPDFButton({
             { id: "sig3", posisi: "Diketahui oleh (MGR)", nama: "YANUER MONTIO", jabatan: "MANAGER BRANDING", x: 0, y: 0, kategori },
             { id: "sig4", posisi: "Divalidasi oleh", nama: "RAMADHANI FAREGA FERNANDA", jabatan: "FAT MANAGER", x: 0, y: 0, kategori },
             { id: "sig5", posisi: "Disetujui oleh", nama: "HANIIF KISBULLAH AULIA IBRAHIM", jabatan: "CEO", x: 0, y: 0, kategori },
-          ];
+          ] as any[];
         } else if (kategori === "Marketplace") {
           signersForCategory = [
             { id: "sig1", posisi: "Dibuat oleh", nama: "HAIDAR BAHI TAQI", jabatan: "KOOR MARKETPLACE", x: 0, y: 0, kategori },
             { id: "sig2", posisi: "Diketahui oleh", nama: "FARHAN FAHRUDIN SUBIANTO", jabatan: "SPV MARKETPLACE", x: 0, y: 0, kategori },
             { id: "sig3", posisi: "Divalidasi oleh", nama: "RAMADHANI FAREGA FERNANDA", jabatan: "FAT MANAGER", x: 0, y: 0, kategori },
             { id: "sig4", posisi: "Disetujui oleh", nama: "HANIIF KISBULLAH AULIA IBRAHIM", jabatan: "CEO", x: 0, y: 0, kategori },
-          ];
+          ] as any[];
         } else {
           signersForCategory = [
             { posisi: "Dibuat oleh", nama: "NURUL FITRIYAH", jabatan: "Koordinator HC", x: 0, y: 0 },
             { posisi: "Disetujui & Diverifikasi oleh,", nama: "RAMADHANI FAREGA FERNANDA", jabatan: "FAT Manager", x: 0, y: 0 }
-          ];
+          ] as any[];
         }
       }
 
