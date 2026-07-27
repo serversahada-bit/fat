@@ -71,7 +71,6 @@ export default async function KelolaPenggunaPage({
   const selectedPermissionMode = selectedUser
     ? getPermissionModeFromStoredValue(selectedUser.role, selectedUser.permissions)
     : "custom";
-  const selectedPermissionOptions = selectedUser
   return (
     <AppShell user={session.user}
       navItems={navItems}
