@@ -47,6 +47,7 @@ type SemuaPengajuan = {
   timestampVerifyTax: Date | null;
   verifiedManager: string | null;
   timestampVerifyManager: Date | null;
+  catatanManager: string | null;
   tanggalRealisasi: Date | null;
   nominalRealisasi: number | null;
   invoice: string | null;
