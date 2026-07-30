@@ -8,7 +8,6 @@ import {
   updateKebutuhanBulananEmployee,
   updateKebutuhanIklanEmployee
 } from "@/app/actions/pengajuan";
-import { formatCurrency } from "@/lib/utils"; // need to check if this exists, if not I'll create a local one. Wait, in page.tsx it was defined locally. Let me define it locally here or use standard Intl.
 
 function formatRupiah(amount: number) {
   return new Intl.NumberFormat("id-ID", {
