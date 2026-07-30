@@ -34,6 +34,7 @@ export function PengajuanBulananForm({
             <option value="OPS RT">OPS RT (Operasional & Rumah Tangga)</option>
             <option value="ATK">ATK (Alat Tulis Kantor)</option>
             <option value="P3K">P3K (Obat & Medis)</option>
+            <option value="DI LUAR RAB">DI LUAR RAB (Non-RAB / Mendadak)</option>
           </select>
         </div>
         <div className="flex flex-col gap-2">

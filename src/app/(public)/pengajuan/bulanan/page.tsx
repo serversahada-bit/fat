@@ -5,6 +5,7 @@ import { createKebutuhanBulanan } from "@/app/actions/pengajuan";
 import { FinanceSubmissionLauncher } from "@/components/FinanceSubmissionLauncher";
 import { UploadInvoiceButton } from "@/components/UploadInvoiceButton";
 import { PengajuanBulananForm } from "@/components/PengajuanBulananForm";
+import { EditableAmount } from "@/components/EditableAmount";
 import { EMPLOYEE_PERMISSIONS, requireEmployeePermission } from "@/lib/auth";
 import { getVisibleEmployeeNavItems } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
@@ -41,7 +42,8 @@ export default async function PengajuanBulananPage({
   const kategoriFilter =
     currentTab === "ATK" ? "ATK" :
     currentTab === "P3K" ? "P3K" :
-    currentTab === "Operasional" ? "OPS RT" : undefined;
+    currentTab === "Operasional" ? "OPS RT" : 
+    currentTab === "NON-RAB" ? "DI LUAR RAB" : undefined;
 
   const date = new Date();
   const namaBulan = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
@@ -73,6 +75,7 @@ export default async function PengajuanBulananPage({
         status: true,
         tanggalRealisasi: true,
         nominalRealisasi: true,
+        nominalTransaksi: true,
         createdAt: true,
         verifiedManager: true,
         tipePengajuan: true,
@@ -82,25 +85,49 @@ export default async function PengajuanBulananPage({
     }),
   ]);
 
-  const financeStatusMap = new Map<string, { id: string; status: "PENDING" | "APPROVED" | "REJECTED"; isManagerApproved: boolean; nominalRealisasi: number | null; tipePengajuan: string | null; invoice: string | null }>();
+  const financeDataMap = new Map<string, { 
+    id: string; 
+    status: "PENDING" | "APPROVED" | "REJECTED"; 
+    isManagerApproved: boolean; 
+    tipePengajuan: string | null; 
+    invoice: string | null;
+    totalRealisasi: number;
+    hasPending: boolean;
+  }>();
+
   for (const submission of financeSubmissions) {
-    if (submission.score && !financeStatusMap.has(submission.score)) {
-      financeStatusMap.set(submission.score, {
+    if (!submission.score) continue;
+    
+    const amount = submission.status !== "REJECTED" 
+      ? (submission.nominalRealisasi ?? submission.nominalTransaksi ?? 0)
+      : 0;
+
+    const existing = financeDataMap.get(submission.score);
+    if (!existing) {
+      financeDataMap.set(submission.score, {
         id: submission.id,
         status: submission.status,
         isManagerApproved: submission.verifiedManager === "APPROVE",
-        nominalRealisasi: submission.nominalRealisasi,
         tipePengajuan: submission.tipePengajuan,
         invoice: submission.invoice,
+        totalRealisasi: amount,
+        hasPending: submission.status === "PENDING" && submission.verifiedManager !== "APPROVE"
+      });
+    } else {
+      financeDataMap.set(submission.score, {
+        ...existing,
+        totalRealisasi: existing.totalRealisasi + amount,
+        hasPending: existing.hasPending || (submission.status === "PENDING" && submission.verifiedManager !== "APPROVE")
       });
     }
   }
 
   let totalSisa = 0;
   for (const item of daftarPengajuan) {
-    const financeSubmission = financeStatusMap.get(item.id);
-    if (financeSubmission?.nominalRealisasi != null) {
-      totalSisa += (item.total - financeSubmission.nominalRealisasi);
+    if (item.kategori === "DI LUAR RAB") continue;
+    const financeData = financeDataMap.get(item.id);
+    if (financeData) {
+      totalSisa += (item.total - financeData.totalRealisasi);
     }
   }
 
@@ -143,7 +170,7 @@ export default async function PengajuanBulananPage({
         <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-8">
           <div className="mb-6 flex flex-col justify-between gap-4 border-b border-slate-100 pb-6 sm:flex-row sm:items-center">
             <div className="flex flex-wrap items-center gap-2">
-              {["Semua", "ATK", "P3K", "Operasional"].map((tab) => (
+              {["Semua", "ATK", "P3K", "Operasional", "NON-RAB"].map((tab) => (
                 <Link
                   key={tab}
                   href={`/pengajuan/bulanan?tab=${tab}`}
@@ -180,15 +207,19 @@ export default async function PengajuanBulananPage({
                     <th className="px-4 py-4 font-semibold">RINCIAN / URAIAN</th>
                     <th className="px-4 py-4 text-center font-semibold">QTY</th>
                     <th className="px-4 py-4 text-center font-semibold">SATUAN</th>
-                    <th className="px-4 py-4 text-right font-semibold">HARGA (Rp)</th>
-                    <th className="px-4 py-4 text-right font-semibold">TOTAL (Rp)</th>
+                    <th className="px-4 py-4 text-right font-semibold">HARGA SATUAN (Rp)</th>
+                    <th className="px-4 py-4 text-right font-semibold">TOTAL BUDGET (RAB)</th>
                     <th className="px-4 py-4 text-right font-semibold">REALISASI (Rp)</th>
+                    <th className="px-4 py-4 text-right font-semibold">SISA BUDGET (Rp)</th>
+                    <th className="px-4 py-4 text-center font-semibold">AKSI / STATUS</th>
                     <th className="px-4 py-4 font-semibold">CATATAN</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-sm">
                   {daftarPengajuan.map((item: any) => {
-                    const financeSubmission = financeStatusMap.get(item.id) ?? null;
+                    const financeData = financeDataMap.get(item.id) ?? null;
+                    const totalRealisasi = financeData?.totalRealisasi ?? 0;
+                    const sisaBudget = (item.total ?? 0) - totalRealisasi;
 
                     return (
                       <tr key={item.id} className="transition-colors hover:bg-slate-50">
@@ -200,30 +231,6 @@ export default async function PengajuanBulananPage({
                           }`}>
                             {item.status}
                           </span>
-                          {item.status === "APPROVED" && (
-                            <div className="mt-2">
-                              <FinanceSubmissionLauncher
-                                defaultTanggal={today}
-                                keterangan={item.rincian}
-                                nominal={item.total}
-                                sourceId={item.id}
-                                sourceType="bulanan"
-                                submittedStatus={financeSubmission?.status}
-                                isManagerApproved={financeSubmission?.isManagerApproved}
-                                userEmail={session.user.email ?? ""}
-                                userName={session.user.name ?? ""}
-                              />
-                            </div>
-                          )}
-                          {financeSubmission?.tipePengajuan === "KASBON" && (
-                            <div className="mt-3 flex justify-center">
-                              <UploadInvoiceButton
-                                id={financeSubmission.id}
-                                initialValue={financeSubmission.invoice}
-                                isKasbon={true}
-                              />
-                            </div>
-                          )}
                         </td>
                         <td className="px-4 py-4 text-center">
                           <span className="rounded-md bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
@@ -236,17 +243,61 @@ export default async function PengajuanBulananPage({
                           <div className="font-semibold text-slate-900">{item.rincian}</div>
                           <div className="mt-0.5 text-xs text-slate-500">{item.bulan}</div>
                         </td>
-                        <td className="px-4 py-4 text-center font-medium text-slate-700">{item.qty}</td>
+                        <td className="px-4 py-4 text-center font-medium text-slate-700">
+                          <div className="flex items-center justify-center gap-1">
+                            <EditableAmount
+                              pengajuanId={item.id}
+                              initialValue={item.qty}
+                              field="qty"
+                              type="bulanan"
+                              role="employee"
+                              isEditable={item.status === "PENDING"}
+                            />
+                          </div>
+                        </td>
                         <td className="px-4 py-4 text-center text-slate-600">{item.satuan}</td>
-                        <td className="px-4 py-4 text-right text-slate-600">{formatCurrency(item.hargaSatuan)}</td>
+                        <td className="px-4 py-4 text-right text-slate-600">
+                          <div className="flex justify-end">
+                            <EditableAmount
+                              pengajuanId={item.id}
+                              initialValue={item.hargaSatuan}
+                              field="hargaSatuan"
+                              type="bulanan"
+                              role="employee"
+                              isEditable={item.status === "PENDING"}
+                            />
+                          </div>
+                        </td>
                         <td className="px-4 py-4 text-right font-bold text-slate-900">{formatCurrency(item.total)}</td>
+                        <td className="px-4 py-4 text-right font-semibold text-emerald-600">{formatCurrency(totalRealisasi)}</td>
+                        <td className="px-4 py-4 text-right font-bold text-amber-600">{formatCurrency(sisaBudget)}</td>
                         <td className="px-4 py-4 text-right">
                           <div className="font-bold text-emerald-700">
-                            {financeSubmission?.nominalRealisasi != null ? formatCurrency(financeSubmission.nominalRealisasi) : "-"}
+                            {item.status === "APPROVED" && (
+                              <div className="mt-2">
+                                <FinanceSubmissionLauncher
+                                  defaultTanggal={today}
+                                  keterangan={item.rincian}
+                                  nominal={sisaBudget > 0 ? sisaBudget : item.total}
+                                  sourceId={item.id}
+                                  sourceType="bulanan"
+                                  submittedStatus={financeData?.status}
+                                  isManagerApproved={financeData?.isManagerApproved}
+                                  userEmail={session.user.email ?? ""}
+                                  userName={session.user.name ?? ""}
+                                  sisaBudget={sisaBudget}
+                                  hasPending={financeData?.hasPending ?? false}
+                                />
+                              </div>
+                            )}
                           </div>
-                          {financeSubmission?.nominalRealisasi != null && (
-                            <div className="mt-1 text-xs font-medium text-slate-500">
-                              Sisa: {formatCurrency(item.total - financeSubmission.nominalRealisasi)}
+                          {financeData?.tipePengajuan === "KASBON" && (
+                            <div className="mt-3 flex justify-center">
+                              <UploadInvoiceButton
+                                id={financeData.id}
+                                initialValue={financeData.invoice}
+                                isKasbon={true}
+                              />
                             </div>
                           )}
                         </td>

@@ -182,11 +182,11 @@ export function SemuaPengajuanForm({
           <div className="flex flex-col gap-2">
             <label className="text-sm font-semibold text-slate-700">EMAIL PRIBADI</label>
             <input
-              className="w-full rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm text-slate-700 outline-none cursor-not-allowed"
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20"
               defaultValue={userEmail}
               name="email"
-              readOnly
               type="email"
+              placeholder="Contoh: user@email.com"
             />
           </div>
 

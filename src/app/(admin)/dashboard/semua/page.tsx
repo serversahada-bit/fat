@@ -176,6 +176,7 @@ export default async function ApprovalSemuaPage() {
                     <th className="bg-[#7f1d1d] px-4 py-4 font-semibold">TIMESTAMP VERIFY TAX</th>
                     <th className="bg-[#0f766e] px-4 py-4 font-semibold">VERIFIED MANAGER</th>
                     <th className="bg-[#0f766e] px-4 py-4 font-semibold">TIMESTAMP VERIFY MANAGER</th>
+                    <th className="bg-[#0f766e] px-4 py-4 font-semibold">CATATAN MANAGER</th>
                     <th className="bg-slate-600 px-4 py-4 font-semibold">TANGGAL REALISASI</th>
                     <th className="bg-slate-600 px-4 py-4 font-semibold text-right">NOMINAL REALISASI</th>
                     <th className="bg-slate-600 px-4 py-4 font-semibold">INVOICE</th>
@@ -260,6 +261,7 @@ export default async function ApprovalSemuaPage() {
                       <td className="px-4 py-3 text-slate-500"><InlineEdit id={item.id} field="timestampVerifyTax" type="datetime-local" initialValue={formatDateTimeInput(item.timestampVerifyTax)} /></td>
                       <td className="px-4 py-3 font-semibold text-slate-700"><InlineEdit id={item.id} field="verifiedManager" type="select" initialValue={item.verifiedManager} options={["APPROVE", "REJECT", "PENDING"]} /></td>
                       <td className="px-4 py-3 text-slate-500"><InlineEdit id={item.id} field="timestampVerifyManager" type="datetime-local" initialValue={formatDateTimeInput(item.timestampVerifyManager)} /></td>
+                      <td className="min-w-[200px] px-4 py-3 text-slate-700"><InlineEdit id={item.id} field="catatanManager" type="text" initialValue={item.catatanManager} /></td>
                       <td className="min-w-[160px] px-4 py-3 text-slate-500"><InlineEdit id={item.id} field="tanggalRealisasi" type="date" initialValue={formatDateInput(item.tanggalRealisasi)} /></td>
                       <td className="min-w-[160px] px-4 py-3 text-right font-medium text-emerald-700"><InlineEdit id={item.id} field="nominalRealisasi" type="number" initialValue={item.nominalRealisasi?.toString() ?? ""} placeholder="0" /></td>
                       <td className="min-w-[150px] px-4 py-3 text-slate-700">

@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { AppShell } from "@/components/AppShell";
 import { ApprovalDropdown } from "@/components/ApprovalDropdown";
 import { ApprovalNote } from "@/components/ApprovalNote";
+import { EditableAmount } from "@/components/EditableAmount";
 import { ExportPDFButton } from "@/components/ExportPDFButton";
 import { DASHBOARD_PERMISSIONS, requireAdminPermission } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -59,7 +60,8 @@ export default async function ApprovalBulananPage({
   const kategoriFilter =
     currentTab === "ATK" ? "ATK" :
     currentTab === "P3K" ? "P3K" :
-    currentTab === "Operasional" ? "OPS RT" : undefined;
+    currentTab === "Operasional" ? "OPS RT" : 
+    currentTab === "NON-RAB" ? "DI LUAR RAB" : undefined;
 
   const whereClause: { kategori?: string } = {};
   if (kategoriFilter) {
@@ -71,6 +73,7 @@ export default async function ApprovalBulananPage({
     ATK: "RENCANA ANGGARAN & BIAYA (ALAT TULIS KANTOR)",
     P3K: "RENCANA ANGGARAN & BIAYA (OBAT & MEDIS)",
     Operasional: "RENCANA ANGGARAN & BIAYA (OPERASIONAL & RUMAH TANGGA)",
+    "NON-RAB": "PENGAJUAN DI LUAR RAB (MENDADAK / NON-RAB)",
   };
   const reportTitle = reportTitleMap[currentTab] || `RENCANA ANGGARAN & BIAYA (${currentTab})`;
 
@@ -90,7 +93,7 @@ export default async function ApprovalBulananPage({
         <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-8">
           <div className="mb-6 flex flex-col justify-between gap-4 border-b border-slate-100 pb-6 sm:flex-row sm:items-center">
             <div className="flex flex-wrap items-center gap-2">
-              {["Semua", "ATK", "P3K", "Operasional"].map((tab) => (
+              {["Semua", "ATK", "P3K", "Operasional", "NON-RAB"].map((tab) => (
                 <Link
                   key={tab}
                   href={`/dashboard/bulanan?tab=${tab}`}
@@ -155,8 +158,16 @@ export default async function ApprovalBulananPage({
                         <div className="font-semibold text-slate-900">{item.rincian}</div>
                         <div className="mt-0.5 text-xs text-slate-500">{item.bulan}</div>
                       </td>
-                      <td className="px-4 py-4 text-center font-medium text-slate-700">{item.qty} {item.satuan}</td>
-                      <td className="px-4 py-4 text-right text-slate-600">{formatCurrency(item.hargaSatuan)}</td>
+                      <td className="px-4 py-4 text-center font-medium text-slate-700">
+                        <div className="flex items-center justify-center gap-1">
+                          <EditableAmount pengajuanId={item.id} initialValue={item.qty} field="qty" type="bulanan" /> {item.satuan}
+                        </div>
+                      </td>
+                      <td className="px-4 py-4 text-right text-slate-600">
+                        <div className="flex justify-end">
+                          <EditableAmount pengajuanId={item.id} initialValue={item.hargaSatuan} field="hargaSatuan" type="bulanan" />
+                        </div>
+                      </td>
                       <td className="px-4 py-4 text-right font-bold text-slate-900">{formatCurrency(item.total)}</td>
                       <td className="px-4 py-4 text-center text-xs text-slate-500">{formatDate(item.createdAt)}</td>
                       <td className="min-w-[250px] px-4 py-4 text-left">

@@ -262,15 +262,23 @@ export async function updateSemuaField(id: string, field: string, value: string 
 
 export async function uploadInvoiceInline(formData: FormData) {
   const id = formData.get("id") as string;
-  const file = formData.get("file") as File;
-  if (!id || !file) return { success: false };
+  const existing = formData.get("existing") as string | null;
+  const files = formData.getAll("files") as File[];
+  if (!id || !files || files.length === 0) return { success: false };
   
-  const url = await saveUploadedFile(file, "invoices");
-  if (!url) return { success: false };
+  const urls: string[] = [];
+  for (const file of files) {
+    const url = await saveUploadedFile(file, "invoices");
+    if (url) urls.push(url);
+  }
+  
+  if (urls.length === 0) return { success: false };
+  const newUrlsStr = urls.join(", ");
+  const finalUrl = existing ? `${existing}, ${newUrlsStr}` : newUrlsStr;
   
   await prisma.semua_pengajuan.update({
     where: { id },
-    data: { invoice: url }
+    data: { invoice: finalUrl }
   });
   
   revalidatePath("/dashboard/semua");
@@ -278,7 +286,7 @@ export async function uploadInvoiceInline(formData: FormData) {
   revalidatePath("/pengajuan/iklan");
   revalidatePath("/pengajuan/semua");
   
-  return { success: true, url };
+  return { success: true, url: finalUrl };
 }
 
 

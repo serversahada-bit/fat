@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { AppShell } from "@/components/AppShell";
 import { ApprovalDropdown } from "@/components/ApprovalDropdown";
 import { ApprovalNote } from "@/components/ApprovalNote";
+import { EditableAmount } from "@/components/EditableAmount";
 import { ExportPDFButton } from "@/components/ExportPDFButton";
 import { DASHBOARD_PERMISSIONS, requireAdminPermission } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -159,8 +160,16 @@ export default async function ApprovalIklanPage({
                         <div className="font-semibold text-slate-900">{item.rincian}</div>
                         <div className="mt-0.5 text-xs text-slate-500">{item.bulan}</div>
                       </td>
-                      <td className="px-4 py-4 text-center font-medium text-slate-700">{item.qty} {item.satuan}</td>
-                      <td className="px-4 py-4 text-right text-slate-600">{formatCurrency(item.hargaSatuan)}</td>
+                      <td className="px-4 py-4 text-center font-medium text-slate-700">
+                        <div className="flex items-center justify-center gap-1">
+                          <EditableAmount pengajuanId={item.id} initialValue={item.qty} field="qty" type="iklan" /> {item.satuan}
+                        </div>
+                      </td>
+                      <td className="px-4 py-4 text-right text-slate-600">
+                        <div className="flex justify-end">
+                          <EditableAmount pengajuanId={item.id} initialValue={item.hargaSatuan} field="hargaSatuan" type="iklan" />
+                        </div>
+                      </td>
                       <td className="px-4 py-4 text-right font-bold text-slate-900">{formatCurrency(item.total)}</td>
                       <td className="px-4 py-4 text-center text-xs text-slate-500">{formatDate(item.createdAt)}</td>
                       <td className="min-w-[250px] px-4 py-4 text-left">

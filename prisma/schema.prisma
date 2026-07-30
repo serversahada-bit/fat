@@ -179,9 +179,10 @@ model semua_pengajuan {
   timestampVerifyTax      DateTime?
   verifiedManager         String?
   timestampVerifyManager  DateTime?
+  catatanManager          String?         @db.Text
   tanggalRealisasi        DateTime?
   nominalRealisasi        Float?
-  invoice                 String?
+  invoice                 String?         @db.Text
   nomorBukti              String?
   adminBank               String?
   pic                     String?

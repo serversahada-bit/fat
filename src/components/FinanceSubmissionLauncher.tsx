@@ -26,6 +26,8 @@ export function FinanceSubmissionLauncher({
   sourceId,
   submittedStatus,
   isManagerApproved,
+  sisaBudget,
+  hasPending,
 }: {
   nominal: number;
   keterangan: string;
@@ -36,31 +38,48 @@ export function FinanceSubmissionLauncher({
   sourceId: string;
   submittedStatus?: "PENDING" | "APPROVED" | "REJECTED" | null;
   isManagerApproved?: boolean;
+  sisaBudget?: number;
+  hasPending?: boolean;
 }) {
   const [isOpen, setIsOpen] = useState(false);
-  const isSubmitted = Boolean(submittedStatus);
+
+  const isLegacyDisabled = Boolean(submittedStatus);
+  const isDisabled = sisaBudget !== undefined 
+    ? (hasPending || sisaBudget <= 0) 
+    : isLegacyDisabled;
+
+  let buttonText = "Ajukan ke Finance";
+  if (sisaBudget !== undefined) {
+    if (sisaBudget <= 0) {
+      buttonText = "Budget Terpakai Habis";
+    } else if (hasPending) {
+      buttonText = "Menunggu Finance";
+    } else {
+      buttonText = "Ajukan ke Finance";
+    }
+  } else if (isLegacyDisabled) {
+    buttonText = getStatusLabel({
+      status: submittedStatus ?? "PENDING",
+      isManagerApproved,
+    });
+  }
 
   return (
     <>
       <button
         className={`inline-block rounded px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide shadow-sm transition-colors ${
-          isSubmitted
+          isDisabled
             ? "cursor-not-allowed bg-slate-300 text-slate-700"
             : "bg-purple-600 text-white hover:bg-purple-700"
         }`}
-        disabled={isSubmitted}
+        disabled={isDisabled}
         onClick={() => setIsOpen(true)}
         type="button"
       >
-        {isSubmitted
-          ? getStatusLabel({
-              status: submittedStatus ?? "PENDING",
-              isManagerApproved,
-            })
-          : "Ajukan ke Finance"}
+        {buttonText}
       </button>
 
-      {!isSubmitted && isOpen && (
+      {!isDisabled && isOpen && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-md animate-fade-in sm:p-6">
           <div className="relative flex max-h-[95vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-slate-900/5 sm:rounded-3xl">
             {/* Header section with a subtle gradient background */}
