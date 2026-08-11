@@ -4,20 +4,14 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 import { uploadInvoiceInline } from "@/app/actions/semua_pengajuan";
 import { InlineEdit } from "./InlineEdit";
+import { parseUploadUrls } from "@/lib/uploads";
 
 const MAX_UPLOAD_FILES = 5;
-
-function parseUploadedUrls(value: string | null) {
-  return String(value ?? "")
-    .split(",")
-    .map((url) => url.trim())
-    .filter((url) => url.startsWith("/"));
-}
 
 export function UploadInvoiceButton({ id, initialValue, isKasbon }: { id: string; initialValue: string | null; isKasbon: boolean }) {
   const [isPending, startTransition] = useTransition();
   const [isUploading, setIsUploading] = useState(false);
-  const urls = parseUploadedUrls(initialValue);
+  const urls = parseUploadUrls(initialValue);
   const hasFiles = urls.length > 0;
   const remainingSlots = Math.max(MAX_UPLOAD_FILES - urls.length, 0);
 
@@ -73,3 +67,5 @@ export function UploadInvoiceButton({ id, initialValue, isKasbon }: { id: string
     </div>
   );
 }
+
+

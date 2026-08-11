@@ -10,6 +10,7 @@ import { TopScrollTable } from "@/components/TopScrollTable";
 import { getVisibleDashboardNavItems } from "@/lib/permissions";
 import { UploadInvoiceButton } from "@/components/UploadInvoiceButton";
 import { ExportExcelButton } from "@/components/ExportExcelButton";
+import { parseUploadUrls } from "@/lib/uploads";
 
 type PengajuanStatus = "PENDING" | "APPROVED" | "REJECTED";
 
@@ -79,13 +80,6 @@ function formatDate(date: Date | null | undefined) {
   return new Intl.DateTimeFormat("id-ID", {
     dateStyle: "medium",
   }).format(date);
-}
-
-function parseUploadedUrls(value: string | null | undefined) {
-  return String(value ?? "")
-    .split(",")
-    .map((url) => url.trim())
-    .filter((url) => url.startsWith("/"));
 }
 
 function formatDateTime(date: Date | null | undefined) {
@@ -209,9 +203,9 @@ export default async function ApprovalSemuaPage() {
                       <td className="min-w-[150px] px-4 py-3 font-mono text-slate-700"><InlineEdit id={item.id} field="nomorRekeningHp" type="text" initialValue={item.nomorRekeningHp} /></td>
                       <td className="px-4 py-3 text-right font-bold text-slate-900"><InlineEdit id={item.id} field="nominalTransaksi" type="number" initialValue={item.nominalTransaksi?.toString() ?? ""} /></td>
                       <td className="max-w-[200px] px-4 py-3 text-blue-600">
-                        {parseUploadedUrls(item.lampiranFinance).length > 0 ? (
+                        {parseUploadUrls(item.lampiranFinance).length > 0 ? (
                           <div className="flex flex-wrap gap-2">
-                            {parseUploadedUrls(item.lampiranFinance).map((url, index) => (
+                            {parseUploadUrls(item.lampiranFinance).map((url, index) => (
                               <Link key={url} className="hover:underline" href={url} rel="noreferrer" target="_blank">
                                 Lampiran {index + 1}
                               </Link>
@@ -220,9 +214,9 @@ export default async function ApprovalSemuaPage() {
                         ) : "-"}
                       </td>
                       <td className="max-w-[200px] px-4 py-3 text-blue-600">
-                        {parseUploadedUrls(item.lampiranTax).length > 0 ? (
+                        {parseUploadUrls(item.lampiranTax).length > 0 ? (
                           <div className="flex flex-wrap gap-2">
-                            {parseUploadedUrls(item.lampiranTax).map((url, index) => (
+                            {parseUploadUrls(item.lampiranTax).map((url, index) => (
                               <Link key={url} className="hover:underline" href={url} rel="noreferrer" target="_blank">
                                 Lampiran {index + 1}
                               </Link>
@@ -296,6 +290,9 @@ export default async function ApprovalSemuaPage() {
     </AppShell>
   );
 }
+
+
+
 
 
 

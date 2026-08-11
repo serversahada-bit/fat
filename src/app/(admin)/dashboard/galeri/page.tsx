@@ -1,10 +1,11 @@
-export const dynamic = "force-dynamic";
+﻿export const dynamic = "force-dynamic";
 
 import { AppShell } from "@/components/AppShell";
 import { requireAdminPermission, DASHBOARD_PERMISSIONS } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getVisibleDashboardNavItems } from "@/lib/permissions";
 import { GaleriGrid, type GaleriItem } from "@/components/GaleriGrid";
+import { parseUploadUrls } from "@/lib/uploads";
 
 const IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg"];
 
@@ -21,13 +22,6 @@ function formatDateKey(date: Date | null | undefined) {
 function formatCurrency(amount: number | null | undefined) {
   if (amount === null || amount === undefined) return null;
   return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(amount);
-}
-
-function parseUrls(value: string | null | undefined) {
-  return String(value ?? "")
-    .split(",")
-    .map((url) => url.trim())
-    .filter((url) => url.startsWith("/"));
 }
 
 function isImageUrl(url: string) {
@@ -64,7 +58,7 @@ export default async function GaleriPage() {
     const nominal = formatCurrency(item.nominalRealisasi ?? item.nominalTransaksi);
 
     for (const source of sources) {
-      const urls = parseUrls(item[source.field]);
+      const urls = parseUploadUrls(item[source.field]);
       for (const url of urls) {
         items.push({
           id: item.id,
@@ -106,3 +100,5 @@ export default async function GaleriPage() {
     </AppShell>
   );
 }
+
+

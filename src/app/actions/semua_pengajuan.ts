@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { DASHBOARD_PERMISSIONS, requireAdminPermission, requireRole } from "@/lib/auth";
+import { buildUploadUrl, getUploadRootDir, parseUploadUrls } from "@/lib/uploads";
 
 type SemuaPengajuanState = {
   success: boolean;
@@ -20,7 +21,7 @@ async function saveUploadedFile(entry: FormDataEntryValue | null, folder: string
     return null;
   }
 
-  const uploadDir = path.join(process.cwd(), "public", "uploads", folder);
+  const uploadDir = path.join(getUploadRootDir(), folder);
   await mkdir(uploadDir, { recursive: true });
 
   const safeName = entry.name.replace(/[^a-zA-Z0-9._-]/g, "_");
@@ -30,18 +31,11 @@ async function saveUploadedFile(entry: FormDataEntryValue | null, folder: string
 
   await writeFile(absolutePath, buffer);
 
-  return `/uploads/${folder}/${filename}`;
+  return buildUploadUrl(folder, filename);
 }
 
 function getUploadedFiles(entries: FormDataEntryValue[]) {
   return entries.filter((entry): entry is File => entry instanceof File && entry.size > 0);
-}
-
-function parseStoredUrls(value: string | null | undefined) {
-  return String(value ?? "")
-    .split(",")
-    .map((url) => url.trim())
-    .filter((url) => url.startsWith("/"));
 }
 
 async function saveUploadedFiles(entries: FormDataEntryValue[], folder: string, maxFiles = MAX_UPLOAD_FILES) {
@@ -290,7 +284,7 @@ export async function updateSemuaField(id: string, field: string, value: string 
 export async function uploadInvoiceInline(formData: FormData) {
   const id = formData.get("id") as string;
   const existing = formData.get("existing") as string | null;
-  const existingUrls = parseStoredUrls(existing);
+  const existingUrls = parseUploadUrls(existing);
   const remainingSlots = Math.max(MAX_UPLOAD_FILES - existingUrls.length, 0);
   const files = getUploadedFiles(formData.getAll("files")).slice(0, remainingSlots);
 
@@ -318,6 +312,8 @@ export async function uploadInvoiceInline(formData: FormData) {
   
   return { success: true, url: finalUrl };
 }
+
+
 
 
 
