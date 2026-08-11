@@ -1,11 +1,12 @@
-"use server";
+﻿"use server";
 
+import { mkdir, rm } from "node:fs/promises";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireSuperAdminPermission } from "@/lib/auth";
 import { DASHBOARD_PERMISSIONS } from "@/lib/permissions";
-
+import { getUploadRootDir } from "@/lib/uploads";
 export async function createBank(formData: FormData) {
   await requireSuperAdminPermission(DASHBOARD_PERMISSIONS.USERS);
   const nama = String(formData.get("nama") ?? "").trim();
@@ -177,3 +178,41 @@ export async function saveAllSignatures(kategori: string, signatures: { kategori
 }
 
 // Force reload action
+export async function resetSubmissionDatabase(formData: FormData) {
+  await requireSuperAdminPermission(DASHBOARD_PERMISSIONS.USERS);
+
+  const confirmation = String(formData.get("confirmation") ?? "").trim().toUpperCase();
+  if (confirmation !== "RESET PENGAJUAN") {
+    redirect("/dashboard/setting?tab=reset&status=confirm-error");
+  }
+
+  try {
+    await prisma.$transaction([
+      prisma.pengajuan.deleteMany(),
+      prisma.kebutuhan_bulanan.deleteMany(),
+      prisma.kebutuhan_iklan.deleteMany(),
+      prisma.semua_pengajuan.deleteMany(),
+    ]);
+
+    const uploadRootDir = getUploadRootDir();
+    await rm(uploadRootDir, { recursive: true, force: true });
+    await mkdir(uploadRootDir, { recursive: true });
+
+    revalidatePath("/dashboard");
+    revalidatePath("/dashboard/bulanan");
+    revalidatePath("/dashboard/iklan");
+    revalidatePath("/dashboard/semua");
+    revalidatePath("/dashboard/galeri");
+    revalidatePath("/pengajuan");
+    revalidatePath("/pengajuan/bulanan");
+    revalidatePath("/pengajuan/iklan");
+    revalidatePath("/pengajuan/semua");
+    revalidatePath("/dashboard/setting");
+
+    redirect("/dashboard/setting?tab=reset&status=reset-ok");
+  } catch {
+    redirect("/dashboard/setting?tab=reset&status=reset-error");
+  }
+}
+
+

@@ -1,4 +1,4 @@
-export const dynamic = "force-dynamic";
+﻿export const dynamic = "force-dynamic";
 
 import { AppShell } from "@/components/AppShell";
 import { createUser, deleteUser, updateUser } from "@/app/actions/user";
@@ -9,7 +9,8 @@ import { SettingBankTab } from "@/components/SettingBankTab";
 import { SettingPajakTab } from "@/components/SettingPajakTab";
 import { SettingNamaTab } from "@/components/SettingNamaTab";
 import { SettingCanvasTab } from "@/components/SettingCanvasTab";
-import { Users, User, Landmark, Receipt, PenTool } from "lucide-react";
+import { SettingResetTab } from "@/components/SettingResetTab";
+import { Users, User, Landmark, Receipt, PenTool, Database } from "lucide-react";
 import {
   EMPLOYEE_PERMISSION_OPTIONS,
   SUPER_ADMIN_PERMISSION_OPTIONS,
@@ -53,6 +54,7 @@ export default async function KelolaPenggunaPage({
   const editUserId = typeof params?.edit === "string" ? params.edit : null;
   const deleteUserId = typeof params?.delete === "string" ? params.delete : null;
   const roleFilter = typeof params?.role === "string" ? params.role : null;
+  const resetStatus = typeof params?.status === "string" ? params.status : null;
 
   const daftarPengguna = (await prisma.user.findMany({
     where: roleFilter ? { role: roleFilter as "SUPER_ADMIN" | "ADMIN" | "KARYAWAN" } : undefined,
@@ -87,6 +89,7 @@ export default async function KelolaPenggunaPage({
                 { tab: "bank", label: "Setting Bank", Icon: Landmark },
                 { tab: "pajak", label: "Setting Pajak", Icon: Receipt },
                 { tab: "canvas", label: "Setting Canvas", Icon: PenTool },
+                { tab: "reset", label: "Reset Data", Icon: Database },
               ].map(({ tab, label, Icon }) => (
                 <Link
                   key={tab}
@@ -445,7 +448,7 @@ export default async function KelolaPenggunaPage({
                       <tr key={user.id} className="transition-colors hover:bg-slate-50">
                         <td className="px-4 py-4">
                           <div className="font-bold text-slate-900">{user.name || "Tanpa Nama"}</div>
-                          <div className="mt-0.5 text-xs text-slate-500">@{user.username || "-"} • {user.email || "Tanpa Email"}</div>
+                          <div className="mt-0.5 text-xs text-slate-500">@{user.username || "-"} â€¢ {user.email || "Tanpa Email"}</div>
                         </td>
                         <td className="px-4 py-4 text-center text-slate-600">{user.divisi || "-"}</td>
                         <td className="min-w-[200px] px-4 py-4 whitespace-normal">
@@ -494,8 +497,11 @@ export default async function KelolaPenggunaPage({
         {currentTab === "bank" && <SettingBankTab />}
         {currentTab === "pajak" && <SettingPajakTab />}
         {currentTab === "canvas" && <SettingCanvasTab />}
+        {currentTab === "reset" && <SettingResetTab status={resetStatus} />}
         </div>
       </div>
     </AppShell>
   );
 }
+
+
