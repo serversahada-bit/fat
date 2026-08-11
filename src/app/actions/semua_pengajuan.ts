@@ -1,13 +1,13 @@
 ﻿"use server";
 
 import { randomUUID } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { DASHBOARD_PERMISSIONS, requireAdminPermission, requireRole } from "@/lib/auth";
-import { buildUploadUrl, getUploadRootDir, parseUploadUrls } from "@/lib/uploads";
+import { buildUploadUrl, getUploadAbsolutePathFromUrl, getUploadRootDir, normalizeUploadUrl, parseUploadUrls, splitStoredUploadUrls, type UploadField } from "@/lib/uploads";
 
 type SemuaPengajuanState = {
   success: boolean;
@@ -281,6 +281,97 @@ export async function updateSemuaField(id: string, field: string, value: string 
   return { success: true };
 }
 
+
+type DeleteGalleryUploadInput = {
+  id: string;
+  field: UploadField;
+  url: string;
+};
+
+export async function deleteGalleryUpload(input: DeleteGalleryUploadInput) {
+  await requireAdminPermission(DASHBOARD_PERMISSIONS.GALERI);
+
+  const id = input.id?.trim();
+  const field = input.field;
+  const normalizedUrl = normalizeUploadUrl(input.url ?? "");
+
+  if (!id || !field || !normalizedUrl.startsWith("/")) {
+    return { success: false, message: "Data file tidak valid." };
+  }
+
+  const pengajuan = await prisma.semua_pengajuan.findUnique({
+    where: { id },
+    select: {
+      lampiranFinance: true,
+      lampiranTax: true,
+      invoice: true,
+    },
+  });
+
+  if (!pengajuan) {
+    return { success: false, message: "Pengajuan tidak ditemukan." };
+  }
+
+  const currentValue = pengajuan[field];
+  const currentUrls = splitStoredUploadUrls(currentValue);
+  const remainingUrls = currentUrls.filter((entry) => normalizeUploadUrl(entry) !== normalizedUrl);
+
+  if (remainingUrls.length === currentUrls.length) {
+    return { success: false, message: "File tidak ditemukan pada data pengajuan." };
+  }
+
+  const nextValue = remainingUrls.length > 0 ? remainingUrls.join(", ") : null;
+
+  if (field === "lampiranFinance") {
+    await prisma.semua_pengajuan.update({
+      where: { id },
+      data: { lampiranFinance: nextValue },
+    });
+  } else if (field === "lampiranTax") {
+    await prisma.semua_pengajuan.update({
+      where: { id },
+      data: { lampiranTax: nextValue },
+    });
+  } else {
+    await prisma.semua_pengajuan.update({
+      where: { id },
+      data: { invoice: nextValue },
+    });
+  }
+
+  const allUploads = await prisma.semua_pengajuan.findMany({
+    select: {
+      lampiranFinance: true,
+      lampiranTax: true,
+      invoice: true,
+    },
+  });
+
+  const isStillReferenced = allUploads.some((item) =>
+    [item.lampiranFinance, item.lampiranTax, item.invoice].some((value) =>
+      splitStoredUploadUrls(value).some((entry) => normalizeUploadUrl(entry) === normalizedUrl),
+    ),
+  );
+
+  if (!isStillReferenced) {
+    const absolutePath = getUploadAbsolutePathFromUrl(normalizedUrl);
+    if (absolutePath) {
+      try {
+        await rm(absolutePath, { force: true });
+      } catch {
+        // Ignore missing filesystem files after database cleanup.
+      }
+    }
+  }
+
+  revalidatePath("/dashboard/galeri");
+  revalidatePath("/dashboard/semua");
+  revalidatePath("/pengajuan/semua");
+  revalidatePath("/pengajuan/bulanan");
+  revalidatePath("/pengajuan/iklan");
+
+  return { success: true, message: "File berhasil dihapus." };
+}
 export async function uploadInvoiceInline(formData: FormData) {
   const id = formData.get("id") as string;
   const existing = formData.get("existing") as string | null;
@@ -312,6 +403,7 @@ export async function uploadInvoiceInline(formData: FormData) {
   
   return { success: true, url: finalUrl };
 }
+
 
 
 

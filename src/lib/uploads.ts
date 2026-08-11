@@ -1,4 +1,6 @@
-import path from "node:path";
+﻿import path from "node:path";
+
+export type UploadField = "lampiranFinance" | "lampiranTax" | "invoice";
 
 const UPLOAD_ROUTE_PREFIX = "/api/uploads";
 const LEGACY_UPLOAD_ROUTE_PREFIX = "/uploads";
@@ -15,7 +17,7 @@ const MIME_TYPES: Record<string, string> = {
 };
 
 export function getUploadRootDir() {
-  return process.env.UPLOAD_DIR?.trim() || path.join(process.cwd(), "public", "uploads");
+  return process.env.UPLOAD_DIR?.trim() || path.join(/* turbopackIgnore: true */ process.cwd(), "public", "uploads");
 }
 
 export function buildUploadUrl(folder: string, filename: string) {
@@ -37,14 +39,44 @@ export function normalizeUploadUrl(url: string) {
   return trimmed;
 }
 
-export function parseUploadUrls(value: string | null | undefined) {
+export function splitStoredUploadUrls(value: string | null | undefined) {
   return String(value ?? "")
     .split(",")
-    .map((url) => normalizeUploadUrl(url))
+    .map((url) => url.trim())
     .filter((url) => url.startsWith("/"));
+}
+
+export function parseUploadUrls(value: string | null | undefined) {
+  return splitStoredUploadUrls(value).map((url) => normalizeUploadUrl(url));
 }
 
 export function getUploadContentType(filePath: string) {
   const ext = path.extname(filePath).toLowerCase();
   return MIME_TYPES[ext] ?? "application/octet-stream";
 }
+
+function getUploadRelativePath(url: string) {
+  const normalized = normalizeUploadUrl(url);
+
+  if (!normalized.startsWith(`${UPLOAD_ROUTE_PREFIX}/`)) {
+    return null;
+  }
+
+  const relativePath = normalized.slice(UPLOAD_ROUTE_PREFIX.length + 1);
+  const parts = relativePath.split("/").filter(Boolean);
+  if (parts.length < 2) {
+    return null;
+  }
+
+  return parts;
+}
+
+export function getUploadAbsolutePathFromUrl(url: string) {
+  const relativePath = getUploadRelativePath(url);
+  if (!relativePath) {
+    return null;
+  }
+
+  return path.join(getUploadRootDir(), ...relativePath);
+}
+

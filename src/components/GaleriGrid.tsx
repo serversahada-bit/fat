@@ -1,11 +1,15 @@
-"use client";
+﻿"use client";
 
-import { useMemo, useState } from "react";
-import { FileText, Search, X, ExternalLink, ArrowDownUp } from "lucide-react";
+import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { FileText, Search, X, ExternalLink, ArrowDownUp, Loader2, Trash2 } from "lucide-react";
+import { deleteGalleryUpload } from "@/app/actions/semua_pengajuan";
+import type { UploadField } from "@/lib/uploads";
 
 export type GaleriItem = {
   id: string;
   url: string;
+  field: UploadField;
   type: string;
   namaPemohon: string;
   keterangan: string | null;
@@ -44,14 +48,18 @@ function groupLabel(key: string, today: string, yesterday: string) {
 }
 
 export function GaleriGrid({ items }: { items: GaleriItem[] }) {
+  const router = useRouter();
+  const [galleryItems, setGalleryItems] = useState(items);
   const [search, setSearch] = useState("");
   const [activeType, setActiveType] = useState("Semua");
   const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
   const [preview, setPreview] = useState<GaleriItem | null>(null);
+  const [deletingKey, setDeletingKey] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
-    return items.filter((item) => {
+    return galleryItems.filter((item) => {
       const matchesType = activeType === "Semua" || item.type === activeType;
       const matchesQuery =
         !query ||
@@ -59,7 +67,7 @@ export function GaleriGrid({ items }: { items: GaleriItem[] }) {
         (item.keterangan ?? "").toLowerCase().includes(query);
       return matchesType && matchesQuery;
     });
-  }, [items, search, activeType]);
+  }, [galleryItems, search, activeType]);
 
   const groups = useMemo(() => {
     const sorted = [...filtered].sort((a, b) => {
@@ -82,6 +90,44 @@ export function GaleriGrid({ items }: { items: GaleriItem[] }) {
 
   const today = useMemo(() => todayKey(), []);
   const yesterday = useMemo(() => yesterdayKey(), []);
+
+  function getItemKey(item: GaleriItem) {
+    return `${item.id}-${item.field}-${item.url}`;
+  }
+
+  async function handleDelete(item: GaleriItem) {
+    if (!window.confirm(`Hapus file "${item.fileName}" dari galeri?`)) {
+      return;
+    }
+
+    const itemKey = getItemKey(item);
+    setDeletingKey(itemKey);
+
+    startTransition(async () => {
+      try {
+        const result = await deleteGalleryUpload({
+          id: item.id,
+          field: item.field,
+          url: item.url,
+        });
+
+        if (!result.success) {
+          window.alert(result.message);
+          return;
+        }
+
+        setGalleryItems((current) =>
+          current.filter((entry) => !(entry.id === item.id && entry.field === item.field && entry.url === item.url)),
+        );
+        setPreview((current) =>
+          current && current.id === item.id && current.field === item.field && current.url === item.url ? null : current,
+        );
+        router.refresh();
+      } finally {
+        setDeletingKey(null);
+      }
+    });
+  }
 
   return (
     <div>
@@ -133,7 +179,7 @@ export function GaleriGrid({ items }: { items: GaleriItem[] }) {
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
                 {groupItems.map((item) => (
                   <button
-                    key={`${item.id}-${item.url}`}
+                    key={`${item.id}-${item.field}-${item.url}`}
                     type="button"
                     onClick={() => setPreview(item)}
                     className="group flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
@@ -190,6 +236,19 @@ export function GaleriGrid({ items }: { items: GaleriItem[] }) {
               )}
             </div>
             <div className="flex flex-col justify-end gap-3 border-t border-slate-100 px-6 py-5 sm:flex-row">
+              <button
+                type="button"
+                onClick={() => handleDelete(preview)}
+                disabled={isPending && deletingKey === getItemKey(preview)}
+                className="flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-6 py-3 font-semibold text-red-700 transition-colors hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isPending && deletingKey === getItemKey(preview) ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash2 className="h-4 w-4" />
+                )}
+                Hapus File
+              </button>
               <button
                 type="button"
                 onClick={() => setPreview(null)}

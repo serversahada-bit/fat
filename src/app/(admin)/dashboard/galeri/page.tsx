@@ -63,6 +63,7 @@ export default async function GaleriPage() {
         items.push({
           id: item.id,
           url,
+          field: source.field,
           type: source.type,
           namaPemohon,
           keterangan: item.keterangan,
@@ -100,5 +101,3 @@ export default async function GaleriPage() {
     </AppShell>
   );
 }
-
-
