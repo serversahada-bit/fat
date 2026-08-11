@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useActionState, useMemo, useState } from "react";
@@ -391,9 +391,11 @@ export function SemuaPengajuanForm({
             <input
               accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.jpg,.jpeg,.png,.webp"
               className="w-full rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-700 file:mr-4 file:rounded-lg file:border-0 file:bg-purple-600 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-purple-700"
+              multiple
               name="lampiranFinance"
               type="file"
             />
+            <FieldHint>Maksimal 5 file.</FieldHint>
           </div>
 
           <div className="flex flex-col gap-2 md:col-span-2">
@@ -401,9 +403,11 @@ export function SemuaPengajuanForm({
             <input
               accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp"
               className="w-full rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-700 file:mr-4 file:rounded-lg file:border-0 file:bg-slate-700 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-slate-800"
+              multiple
               name="lampiranTax"
               type="file"
             />
+            <FieldHint>Maksimal 5 file.</FieldHint>
           </div>
         </div>
 
@@ -460,3 +464,4 @@ export function SemuaPengajuanForm({
     </>
   );
 }
+

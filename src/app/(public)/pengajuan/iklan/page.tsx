@@ -118,7 +118,7 @@ export default async function PengajuanIklanPage({
 
   const headerActions = (
     <div className="flex w-full items-center gap-3 md:w-auto">
-      <Link href="/pengajuan/iklan?baru=true" className="whitespace-nowrap rounded-full bg-purple-600 px-5 py-2.5 font-medium text-white shadow-md transition-colors hover:bg-purple-700">
+      <Link href="/pengajuan/iklan?baru=true" className="gradient-brand whitespace-nowrap rounded-full px-5 py-2.5 font-medium text-white shadow-md shadow-purple-600/25 transition-transform hover:-translate-y-0.5">
         + Tambah Pengajuan
       </Link>
       <button className="hidden whitespace-nowrap rounded-lg border border-slate-200 bg-white px-4 py-2.5 font-medium text-slate-700 transition-colors hover:bg-slate-50 sm:block">
@@ -219,7 +219,7 @@ export default async function PengajuanIklanPage({
                   </div>
 
                   <div className="flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row">
-                    <button type="submit" className="w-full rounded-xl bg-purple-600 px-6 py-3 font-semibold text-white shadow-md transition-all hover:bg-purple-700 active:scale-[0.98] sm:w-auto">
+                    <button type="submit" className="gradient-brand w-full rounded-xl px-6 py-3 font-semibold text-white shadow-md shadow-purple-600/25 transition-all hover:-translate-y-0.5 active:scale-[0.98] sm:w-auto">
                       Simpan Kebutuhan Iklan
                     </button>
                     <Link href="/pengajuan/iklan" className="w-full rounded-xl border border-slate-200 bg-white px-6 py-3 text-center font-semibold text-slate-700 transition-all hover:bg-slate-50 sm:w-auto">
@@ -232,14 +232,14 @@ export default async function PengajuanIklanPage({
           </div>
         )}
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-8">
+        <section className="shadow-card rounded-2xl border border-slate-200 bg-white p-4 md:p-8">
           <div className="mb-6 flex flex-col justify-between gap-4 border-b border-slate-100 pb-6 sm:flex-row sm:items-center">
             <div className="flex flex-wrap items-center gap-2">
               {["Semua", "Pending", "Disetujui", "Ditolak"].map((tab) => (
                 <Link
                   key={tab}
                   href={`/pengajuan/iklan?tab=${tab}`}
-                  className={`rounded-full px-4 py-2 text-sm font-semibold transition-all ${currentTab === tab ? "bg-purple-600 text-white shadow-md shadow-purple-600/20" : "bg-transparent text-slate-500 hover:bg-slate-100"}`}
+                  className={`rounded-full px-4 py-2 text-sm font-semibold transition-all ${currentTab === tab ? "gradient-brand text-white shadow-md shadow-purple-600/25" : "bg-transparent text-slate-500 hover:bg-slate-100"}`}
                 >
                   {tab}
                 </Link>
@@ -258,7 +258,7 @@ export default async function PengajuanIklanPage({
           ) : (
             <div className="custom-scrollbar overflow-x-auto rounded-xl border border-slate-200">
               <table className="min-w-[1000px] w-full border-collapse whitespace-nowrap text-left">
-                <thead className="bg-purple-600 text-xs uppercase tracking-wider text-white">
+                <thead className="gradient-brand text-xs uppercase tracking-wider text-white">
                   <tr>
                     <th className="px-4 py-4 text-center font-semibold">STATUS</th>
                     <th className="px-4 py-4 text-center font-semibold">PLATFORM</th>

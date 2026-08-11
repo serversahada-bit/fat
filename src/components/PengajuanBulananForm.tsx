@@ -114,9 +114,9 @@ export function PengajuanBulananForm({
       </div>
 
       <div className="flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row">
-        <button 
-          type="submit" 
-          className="w-full rounded-xl bg-purple-600 px-6 py-3 font-semibold text-white shadow-md transition-all hover:bg-purple-700 active:scale-[0.98] sm:w-auto"
+        <button
+          type="submit"
+          className="gradient-brand w-full rounded-xl px-6 py-3 font-semibold text-white shadow-md shadow-purple-600/25 transition-all hover:-translate-y-0.5 active:scale-[0.98] sm:w-auto"
         >
           Simpan Kebutuhan
         </button>

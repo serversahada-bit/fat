@@ -1,4 +1,4 @@
-"use server";
+﻿"use server";
 
 import { randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
@@ -12,6 +12,8 @@ type SemuaPengajuanState = {
   success: boolean;
   message: string;
 };
+
+const MAX_UPLOAD_FILES = 5;
 
 async function saveUploadedFile(entry: FormDataEntryValue | null, folder: string) {
   if (!(entry instanceof File) || entry.size === 0) {
@@ -31,9 +33,34 @@ async function saveUploadedFile(entry: FormDataEntryValue | null, folder: string
   return `/uploads/${folder}/${filename}`;
 }
 
+function getUploadedFiles(entries: FormDataEntryValue[]) {
+  return entries.filter((entry): entry is File => entry instanceof File && entry.size > 0);
+}
+
+function parseStoredUrls(value: string | null | undefined) {
+  return String(value ?? "")
+    .split(",")
+    .map((url) => url.trim())
+    .filter((url) => url.startsWith("/"));
+}
+
+async function saveUploadedFiles(entries: FormDataEntryValue[], folder: string, maxFiles = MAX_UPLOAD_FILES) {
+  const files = getUploadedFiles(entries).slice(0, maxFiles);
+  const urls: string[] = [];
+
+  for (const file of files) {
+    const url = await saveUploadedFile(file, folder);
+    if (url) {
+      urls.push(url);
+    }
+  }
+
+  return urls;
+}
+
 async function buildSemuaPengajuanData(formData: FormData, userId: string) {
-  const lampiranFinance = await saveUploadedFile(formData.get("lampiranFinance"), "finance");
-  const lampiranTax = await saveUploadedFile(formData.get("lampiranTax"), "tax");
+  const lampiranFinanceFiles = await saveUploadedFiles(formData.getAll("lampiranFinance"), "finance");
+  const lampiranTaxFiles = await saveUploadedFiles(formData.getAll("lampiranTax"), "tax");
   const session = await requireRole("KARYAWAN");
 
   return {
@@ -52,10 +79,10 @@ async function buildSemuaPengajuanData(formData: FormData, userId: string) {
     nominalTransaksi: formData.get("nominalTransaksi") ? parseFloat(String(formData.get("nominalTransaksi"))) : null,
     keterangan: String(formData.get("keterangan") ?? "").trim() || null,
 
-    lampiranFinance,
+    lampiranFinance: lampiranFinanceFiles.length > 0 ? lampiranFinanceFiles.join(", ") : null,
     column17: String(formData.get("column17") ?? "").trim() || null,
     score: String(formData.get("score") ?? "").trim() || null,
-    lampiranTax,
+    lampiranTax: lampiranTaxFiles.length > 0 ? lampiranTaxFiles.join(", ") : null,
 
     tipePengajuan: String(formData.get("tipePengajuan") ?? "").trim() || null,
     bankPengirim: String(formData.get("bankPengirim") ?? "").trim() || null,
@@ -263,7 +290,10 @@ export async function updateSemuaField(id: string, field: string, value: string 
 export async function uploadInvoiceInline(formData: FormData) {
   const id = formData.get("id") as string;
   const existing = formData.get("existing") as string | null;
-  const files = formData.getAll("files") as File[];
+  const existingUrls = parseStoredUrls(existing);
+  const remainingSlots = Math.max(MAX_UPLOAD_FILES - existingUrls.length, 0);
+  const files = getUploadedFiles(formData.getAll("files")).slice(0, remainingSlots);
+
   if (!id || !files || files.length === 0) return { success: false };
   
   const urls: string[] = [];
@@ -274,7 +304,7 @@ export async function uploadInvoiceInline(formData: FormData) {
   
   if (urls.length === 0) return { success: false };
   const newUrlsStr = urls.join(", ");
-  const finalUrl = existing ? `${existing}, ${newUrlsStr}` : newUrlsStr;
+  const finalUrl = existingUrls.length > 0 ? [...existingUrls, ...urls].join(", ") : newUrlsStr;
   
   await prisma.semua_pengajuan.update({
     where: { id },
@@ -288,5 +318,6 @@ export async function uploadInvoiceInline(formData: FormData) {
   
   return { success: true, url: finalUrl };
 }
+
 
 

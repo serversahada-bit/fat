@@ -1,4 +1,4 @@
-export const dynamic = "force-dynamic";
+﻿export const dynamic = "force-dynamic";
 
 import { AppShell } from "@/components/AppShell";
 import { requireAdminPermission, DASHBOARD_PERMISSIONS } from "@/lib/auth";
@@ -9,6 +9,7 @@ import { FundRequestPrintCell } from "@/components/FundRequestPrintCell";
 import { TopScrollTable } from "@/components/TopScrollTable";
 import { getVisibleDashboardNavItems } from "@/lib/permissions";
 import { UploadInvoiceButton } from "@/components/UploadInvoiceButton";
+import { ExportExcelButton } from "@/components/ExportExcelButton";
 
 type PengajuanStatus = "PENDING" | "APPROVED" | "REJECTED";
 
@@ -80,6 +81,13 @@ function formatDate(date: Date | null | undefined) {
   }).format(date);
 }
 
+function parseUploadedUrls(value: string | null | undefined) {
+  return String(value ?? "")
+    .split(",")
+    .map((url) => url.trim())
+    .filter((url) => url.startsWith("/"));
+}
+
 function formatDateTime(date: Date | null | undefined) {
   if (!date) return "-";
   return new Intl.DateTimeFormat("id-ID", {
@@ -129,13 +137,11 @@ export default async function ApprovalSemuaPage() {
       navItems={navItems}
     >
       <div className="grid min-w-0 grid-cols-1 gap-6">
-        <section className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-8">
+        <section className="shadow-card min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 md:p-8">
           <div className="mb-6 flex flex-col gap-4 border-b border-slate-100 pb-6 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="text-xl font-bold text-slate-900">Database Transaksi Keuangan</h2>
             <div className="flex gap-2">
-              <button className="whitespace-nowrap rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-emerald-700">
-                Export to Excel
-              </button>
+              <ExportExcelButton data={daftarPengajuan} fileName="Semua_Pengajuan" />
             </div>
           </div>
 
@@ -146,8 +152,8 @@ export default async function ApprovalSemuaPage() {
               <table className="w-max min-w-full whitespace-nowrap border-collapse text-left">
                 <thead className="text-xs uppercase tracking-wider text-white">
                   <tr>
-                    <th className="sticky left-0 z-20 min-w-[200px] bg-purple-700 px-4 py-4 font-semibold shadow-[1px_0_0_#e2e8f0]">NAMA PEMOHON</th>
-                    <th className="sticky left-[200px] z-20 min-w-[300px] bg-purple-700 px-4 py-4 font-semibold shadow-[1px_0_0_#e2e8f0]">BERITA TRANSAKSI / KETERANGAN</th>
+                    <th className="bg-purple-600 sticky left-0 z-20 min-w-[200px] px-4 py-4 font-semibold shadow-[1px_0_0_#e2e8f0]">NAMA PEMOHON</th>
+                    <th className="bg-purple-600 sticky left-[200px] z-20 min-w-[300px] px-4 py-4 font-semibold shadow-[1px_0_0_#e2e8f0]">BERITA TRANSAKSI / KETERANGAN</th>
                     <th className="bg-purple-600 px-4 py-4 font-semibold">TIME STAMP</th>
                     <th className="bg-purple-600 min-w-[200px] px-4 py-4 font-semibold">NAMA PENERIMA</th>
                     <th className="bg-purple-600 px-4 py-4 font-semibold">Email Address</th>
@@ -202,18 +208,26 @@ export default async function ApprovalSemuaPage() {
                       <td className="min-w-[150px] px-4 py-3 text-slate-700"><InlineEdit id={item.id} field="detailBankPenerima" type="text" initialValue={item.detailBankPenerima} /></td>
                       <td className="min-w-[150px] px-4 py-3 font-mono text-slate-700"><InlineEdit id={item.id} field="nomorRekeningHp" type="text" initialValue={item.nomorRekeningHp} /></td>
                       <td className="px-4 py-3 text-right font-bold text-slate-900"><InlineEdit id={item.id} field="nominalTransaksi" type="number" initialValue={item.nominalTransaksi?.toString() ?? ""} /></td>
-                      <td className="max-w-[200px] truncate px-4 py-3 text-blue-600">
-                        {item.lampiranFinance ? (
-                          <Link className="hover:underline" href={item.lampiranFinance} rel="noreferrer" target="_blank">
-                            Buka lampiran
-                          </Link>
+                      <td className="max-w-[200px] px-4 py-3 text-blue-600">
+                        {parseUploadedUrls(item.lampiranFinance).length > 0 ? (
+                          <div className="flex flex-wrap gap-2">
+                            {parseUploadedUrls(item.lampiranFinance).map((url, index) => (
+                              <Link key={url} className="hover:underline" href={url} rel="noreferrer" target="_blank">
+                                Lampiran {index + 1}
+                              </Link>
+                            ))}
+                          </div>
                         ) : "-"}
                       </td>
-                      <td className="max-w-[200px] truncate px-4 py-3 text-blue-600">
-                        {item.lampiranTax ? (
-                          <Link className="hover:underline" href={item.lampiranTax} rel="noreferrer" target="_blank">
-                            Buka lampiran
-                          </Link>
+                      <td className="max-w-[200px] px-4 py-3 text-blue-600">
+                        {parseUploadedUrls(item.lampiranTax).length > 0 ? (
+                          <div className="flex flex-wrap gap-2">
+                            {parseUploadedUrls(item.lampiranTax).map((url, index) => (
+                              <Link key={url} className="hover:underline" href={url} rel="noreferrer" target="_blank">
+                                Lampiran {index + 1}
+                              </Link>
+                            ))}
+                          </div>
                         ) : "-"}
                       </td>
                       <td className="px-4 py-3 text-slate-700">
@@ -282,6 +296,7 @@ export default async function ApprovalSemuaPage() {
     </AppShell>
   );
 }
+
 
 
 

@@ -10,7 +10,7 @@ export async function SettingCanvasTab() {
 
   return (
     <div className="flex flex-col gap-6">
-      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
+      <section className="shadow-card rounded-2xl border border-slate-200 bg-white p-6 md:p-8">
         <VisualSignatureEditor initialSignatures={canvases} />
       </section>
     </div>

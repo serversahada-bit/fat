@@ -1,4 +1,4 @@
-import "server-only";
+﻿import "server-only";
 
 import { cache } from "react";
 import { getServerSession } from "next-auth";
@@ -17,7 +17,14 @@ import {
 
 type UserRole = "SUPER_ADMIN" | "ADMIN" | "KARYAWAN";
 
-export const getSession = cache(async () => getServerSession(authOptions));
+export const getSession = cache(async () => {
+  try {
+    return await getServerSession(authOptions);
+  } catch (error) {
+    console.error("[auth] failed to read session", error);
+    return null;
+  }
+});
 
 export async function requireUser() {
   const session = await getSession();

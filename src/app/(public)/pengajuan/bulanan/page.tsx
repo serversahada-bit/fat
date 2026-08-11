@@ -133,7 +133,7 @@ export default async function PengajuanBulananPage({
 
   const headerActions = (
     <div className="flex w-full items-center gap-3 md:w-auto">
-      <Link href="/pengajuan/bulanan?baru=true" className="whitespace-nowrap rounded-full bg-purple-600 px-5 py-2.5 font-medium text-white shadow-md transition-colors hover:bg-purple-700">
+      <Link href="/pengajuan/bulanan?baru=true" className="gradient-brand whitespace-nowrap rounded-full px-5 py-2.5 font-medium text-white shadow-md shadow-purple-600/25 transition-transform hover:-translate-y-0.5">
         + Tambah Pengajuan
       </Link>
     </div>
@@ -167,14 +167,14 @@ export default async function PengajuanBulananPage({
           </div>
         )}
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-8">
+        <section className="shadow-card rounded-2xl border border-slate-200 bg-white p-4 md:p-8">
           <div className="mb-6 flex flex-col justify-between gap-4 border-b border-slate-100 pb-6 sm:flex-row sm:items-center">
             <div className="flex flex-wrap items-center gap-2">
               {["Semua", "ATK", "P3K", "Operasional", "NON-RAB"].map((tab) => (
                 <Link
                   key={tab}
                   href={`/pengajuan/bulanan?tab=${tab}`}
-                  className={`rounded-full px-4 py-2 text-sm font-semibold transition-all ${currentTab === tab ? "bg-purple-600 text-white shadow-md shadow-purple-600/20" : "bg-transparent text-slate-500 hover:bg-slate-100"}`}
+                  className={`rounded-full px-4 py-2 text-sm font-semibold transition-all ${currentTab === tab ? "gradient-brand text-white shadow-md shadow-purple-600/25" : "bg-transparent text-slate-500 hover:bg-slate-100"}`}
                 >
                   {tab}
                 </Link>
@@ -198,7 +198,7 @@ export default async function PengajuanBulananPage({
           ) : (
             <div className="custom-scrollbar overflow-x-auto rounded-xl border border-slate-200">
               <table className="min-w-[1000px] w-full border-collapse whitespace-nowrap text-left">
-                <thead className="bg-purple-600 text-xs uppercase tracking-wider text-white">
+                <thead className="gradient-brand text-xs uppercase tracking-wider text-white">
                   <tr>
                     <th className="px-4 py-4 text-center font-semibold">STATUS</th>
                     <th className="px-4 py-4 text-center font-semibold">KATEGORI</th>

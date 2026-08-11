@@ -24,6 +24,12 @@ export const SUPER_ADMIN_PERMISSION_OPTIONS = [
     description: "Akses database master semua pengajuan.",
   },
   {
+    permission: "dashboard.galeri",
+    label: "Galeri",
+    href: "/dashboard/galeri",
+    description: "Akses galeri bukti transfer dan lampiran pengajuan.",
+  },
+  {
     permission: "dashboard.users",
     label: "Setting",
     href: "/dashboard/setting",
@@ -56,6 +62,12 @@ export const ADMIN_PERMISSION_OPTIONS = [
     href: "/dashboard/semua",
     description: "Akses database master semua pengajuan.",
   },
+  {
+    permission: "dashboard.galeri",
+    label: "Galeri",
+    href: "/dashboard/galeri",
+    description: "Akses galeri bukti transfer dan lampiran pengajuan.",
+  },
 ] as const;
 
 export const EMPLOYEE_PERMISSION_OPTIONS = [
@@ -84,6 +96,7 @@ export const DASHBOARD_PERMISSIONS = {
   BULANAN: "dashboard.bulanan",
   IKLAN: "dashboard.iklan",
   SEMUA: "dashboard.semua",
+  GALERI: "dashboard.galeri",
   USERS: "dashboard.users",
 } as const;
 

@@ -10,7 +10,7 @@ export async function SettingPajakTab() {
 
   return (
     <div className="flex flex-col gap-6">
-      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
+      <section className="shadow-card rounded-2xl border border-slate-200 bg-white p-6 md:p-8">
         <div className="mb-6 border-b border-slate-100 pb-6">
           <h2 className="mb-1 text-xl font-bold text-slate-900">Tambah Aturan Pajak</h2>
           <p className="text-sm text-slate-500">Tambahkan jenis pajak dan nilai persentasenya. Anda juga dapat mengklik dua kali (double click) pada teks di tabel bawah untuk mengeditnya secara langsung.</p>
@@ -24,13 +24,13 @@ export async function SettingPajakTab() {
             <label htmlFor="persentase" className="text-sm font-semibold text-slate-700">Persentase (%)</label>
             <input id="persentase" name="persentase" type="number" step="0.01" placeholder="Contoh: 11" required className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20" />
           </div>
-          <button type="submit" className="rounded-xl bg-purple-600 px-6 py-3 font-semibold text-white shadow-md transition-all hover:bg-purple-700 active:scale-[0.98]">
+          <button type="submit" className="gradient-brand rounded-xl px-6 py-3 font-semibold text-white shadow-md shadow-purple-600/25 transition-all hover:-translate-y-0.5 active:scale-[0.98]">
             Simpan Pajak
           </button>
         </form>
       </section>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
+      <section className="shadow-card rounded-2xl border border-slate-200 bg-white p-6 md:p-8">
         <div className="mb-6 border-b border-slate-100 pb-6">
           <h2 className="mb-1 text-xl font-bold text-slate-900">Daftar Pajak</h2>
           <p className="text-sm text-slate-500">Berikut adalah aturan pajak yang berlaku. Double click (klik ganda) pada baris tabel untuk merubah datanya.</p>

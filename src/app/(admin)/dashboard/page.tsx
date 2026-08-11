@@ -5,6 +5,7 @@ import { updatePengajuanStatus } from "@/app/actions/pengajuan";
 import { DASHBOARD_PERMISSIONS, requireAdminPermission } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getVisibleDashboardNavItems } from "@/lib/permissions";
+import { ClipboardList, Clock, CheckCircle2 } from "lucide-react";
 
 function formatDate(date: Date) {
   return new Intl.DateTimeFormat("id-ID", {
@@ -43,21 +44,36 @@ export default async function Dashboard() {
       navItems={navItems}
     >
       <div className="mb-8 grid grid-cols-1 gap-5 sm:grid-cols-3">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <span className="text-sm font-medium text-slate-500">Total Pengajuan Umum</span>
-          <strong className="mt-2 block text-3xl text-slate-900">{totalPengajuan}</strong>
+        <div className="shadow-card shadow-card-hover group rounded-2xl border border-slate-200 bg-white p-5 transition-shadow">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-slate-500">Total Pengajuan Umum</span>
+            <span className="gradient-brand flex h-10 w-10 items-center justify-center rounded-xl text-white shadow-sm shadow-purple-600/20">
+              <ClipboardList className="h-5 w-5" strokeWidth={2.25} />
+            </span>
+          </div>
+          <strong className="mt-3 block text-3xl text-slate-900">{totalPengajuan}</strong>
         </div>
-        <div className="rounded-2xl border border-slate-200 border-l-4 border-l-amber-500 bg-white p-5 shadow-sm">
-          <span className="text-sm font-medium text-slate-500">Menunggu Approval</span>
-          <strong className="mt-2 block text-3xl text-slate-900">{pendingPengajuan}</strong>
+        <div className="shadow-card shadow-card-hover group rounded-2xl border border-slate-200 bg-white p-5 transition-shadow">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-slate-500">Menunggu Approval</span>
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-600 shadow-sm">
+              <Clock className="h-5 w-5" strokeWidth={2.25} />
+            </span>
+          </div>
+          <strong className="mt-3 block text-3xl text-slate-900">{pendingPengajuan}</strong>
         </div>
-        <div className="rounded-2xl border border-slate-200 border-l-4 border-l-emerald-500 bg-white p-5 shadow-sm">
-          <span className="text-sm font-medium text-slate-500">Sudah Diproses</span>
-          <strong className="mt-2 block text-3xl text-slate-900">{processedPengajuan}</strong>
+        <div className="shadow-card shadow-card-hover group rounded-2xl border border-slate-200 bg-white p-5 transition-shadow">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-slate-500">Sudah Diproses</span>
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600 shadow-sm">
+              <CheckCircle2 className="h-5 w-5" strokeWidth={2.25} />
+            </span>
+          </div>
+          <strong className="mt-3 block text-3xl text-slate-900">{processedPengajuan}</strong>
         </div>
       </div>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-8">
+      <section className="shadow-card rounded-2xl border border-slate-200 bg-white p-4 md:p-8">
         <div className="mb-6 flex flex-col justify-between gap-4 border-b border-slate-100 pb-6 md:flex-row md:items-center">
           <div>
             <h2 className="mb-1 text-xl font-bold text-slate-900">Antrian Approval Umum</h2>
@@ -72,7 +88,7 @@ export default async function Dashboard() {
         ) : (
           <div className="flex flex-col gap-6">
             {daftarPengajuan.map((item: any) => (
-              <article key={item.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md md:p-6">
+              <article key={item.id} className="shadow-card-hover rounded-2xl border border-slate-200 bg-white p-5 transition-shadow md:p-6">
                 <div className="mb-4 flex flex-col gap-4 border-b border-slate-100 pb-4 md:flex-row md:items-start md:justify-between">
                   <div>
                     <span className={`mb-3 inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold ${

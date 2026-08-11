@@ -90,7 +90,7 @@ export default async function ApprovalBulananPage({
       navItems={navItems}
     >
       <div className="grid grid-cols-1 gap-6">
-        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-8">
+        <section className="shadow-card rounded-2xl border border-slate-200 bg-white p-4 md:p-8">
           <div className="mb-6 flex flex-col justify-between gap-4 border-b border-slate-100 pb-6 sm:flex-row sm:items-center">
             <div className="flex flex-wrap items-center gap-2">
               {["Semua", "ATK", "P3K", "Operasional", "NON-RAB"].map((tab) => (
@@ -99,7 +99,7 @@ export default async function ApprovalBulananPage({
                   href={`/dashboard/bulanan?tab=${tab}`}
                   className={`rounded-full px-4 py-2 text-sm font-semibold transition-all ${
                     currentTab === tab
-                      ? "bg-purple-600 text-white shadow-md shadow-purple-600/20"
+                      ? "gradient-brand text-white shadow-md shadow-purple-600/25"
                       : "bg-transparent text-slate-500 hover:bg-slate-100"
                   }`}
                 >
@@ -118,7 +118,7 @@ export default async function ApprovalBulananPage({
           ) : (
             <div className="custom-scrollbar overflow-x-auto rounded-xl border border-slate-200">
               <table className="min-w-[1200px] w-full border-collapse whitespace-nowrap text-left">
-                <thead className="bg-purple-600 text-xs uppercase tracking-wider text-white">
+                <thead className="gradient-brand text-xs uppercase tracking-wider text-white">
                   <tr>
                     <th className="px-4 py-4 text-center font-semibold">STATUS</th>
                     <th className="px-4 py-4 text-center font-semibold">KATEGORI</th>

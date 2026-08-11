@@ -9,6 +9,7 @@ import { SettingBankTab } from "@/components/SettingBankTab";
 import { SettingPajakTab } from "@/components/SettingPajakTab";
 import { SettingNamaTab } from "@/components/SettingNamaTab";
 import { SettingCanvasTab } from "@/components/SettingCanvasTab";
+import { Users, User, Landmark, Receipt, PenTool } from "lucide-react";
 import {
   EMPLOYEE_PERMISSION_OPTIONS,
   SUPER_ADMIN_PERMISSION_OPTIONS,
@@ -78,38 +79,24 @@ export default async function KelolaPenggunaPage({
       <div className="flex flex-col gap-6">
         {/* Topbar Navigasi Setting */}
         <nav className="w-full shrink-0">
-          <div className="rounded-2xl border border-slate-200 bg-white p-2 shadow-sm overflow-x-auto custom-scrollbar">
-            <div className="flex gap-2 min-w-max">
-              <Link
-                href="/dashboard/setting?tab=user"
-                className={`flex items-center justify-center rounded-xl px-5 py-2.5 text-sm font-semibold transition-colors ${currentTab === 'user' ? 'bg-purple-50 text-purple-700' : 'text-slate-600 hover:bg-slate-50'}`}
-              >
-                <span>User</span>
-              </Link>
-              <Link
-                href="/dashboard/setting?tab=nama"
-                className={`flex items-center justify-center rounded-xl px-5 py-2.5 text-sm font-semibold transition-colors ${currentTab === 'nama' ? 'bg-purple-50 text-purple-700' : 'text-slate-600 hover:bg-slate-50'}`}
-              >
-                <span>Nama</span>
-              </Link>
-              <Link
-                href="/dashboard/setting?tab=bank"
-                className={`flex items-center justify-center rounded-xl px-5 py-2.5 text-sm font-semibold transition-colors ${currentTab === 'bank' ? 'bg-purple-50 text-purple-700' : 'text-slate-600 hover:bg-slate-50'}`}
-              >
-                <span>Setting Bank</span>
-              </Link>
-              <Link
-                href="/dashboard/setting?tab=pajak"
-                className={`flex items-center justify-center rounded-xl px-5 py-2.5 text-sm font-semibold transition-colors ${currentTab === 'pajak' ? 'bg-purple-50 text-purple-700' : 'text-slate-600 hover:bg-slate-50'}`}
-              >
-                <span>Setting Pajak</span>
-              </Link>
-              <Link
-                href="/dashboard/setting?tab=canvas"
-                className={`flex items-center justify-center rounded-xl px-5 py-2.5 text-sm font-semibold transition-colors ${currentTab === 'canvas' ? 'bg-purple-50 text-purple-700' : 'text-slate-600 hover:bg-slate-50'}`}
-              >
-                <span>Setting Canvas</span>
-              </Link>
+          <div className="shadow-card custom-scrollbar overflow-x-auto rounded-2xl border border-slate-200 bg-white p-2">
+            <div className="flex min-w-max gap-2">
+              {[
+                { tab: "user", label: "User", Icon: Users },
+                { tab: "nama", label: "Nama", Icon: User },
+                { tab: "bank", label: "Setting Bank", Icon: Landmark },
+                { tab: "pajak", label: "Setting Pajak", Icon: Receipt },
+                { tab: "canvas", label: "Setting Canvas", Icon: PenTool },
+              ].map(({ tab, label, Icon }) => (
+                <Link
+                  key={tab}
+                  href={`/dashboard/setting?tab=${tab}`}
+                  className={`flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold transition-all ${currentTab === tab ? "gradient-brand text-white shadow-md shadow-purple-600/25" : "text-slate-600 hover:bg-purple-50 hover:text-purple-700"}`}
+                >
+                  <Icon className="h-4 w-4" strokeWidth={2.25} />
+                  <span>{label}</span>
+                </Link>
+              ))}
             </div>
           </div>
         </nav>
@@ -230,7 +217,7 @@ export default async function KelolaPenggunaPage({
                   </div>
 
                   <div className="flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row">
-                    <button type="submit" className="w-full rounded-xl bg-purple-600 px-6 py-3 font-semibold text-white shadow-md transition-all hover:bg-purple-700 active:scale-[0.98] sm:w-auto">
+                    <button type="submit" className="gradient-brand w-full rounded-xl px-6 py-3 font-semibold text-white shadow-md shadow-purple-600/25 transition-all hover:-translate-y-0.5 active:scale-[0.98] sm:w-auto">
                       Buat Akun
                     </button>
                     <Link href="/dashboard/setting" className="w-full rounded-xl border border-slate-200 bg-white px-6 py-3 text-center font-semibold text-slate-700 transition-all hover:bg-slate-50 sm:w-auto">
@@ -412,7 +399,7 @@ export default async function KelolaPenggunaPage({
           </div>
         )}
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-8">
+        <section className="shadow-card rounded-2xl border border-slate-200 bg-white p-4 md:p-8">
           <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-6 gap-4">
             <div>
               <h2 className="mb-1 text-xl font-bold text-slate-900">Daftar User & Hak Akses Menu</h2>
@@ -420,7 +407,7 @@ export default async function KelolaPenggunaPage({
             </div>
             <Link
               href="/dashboard/setting?baru=true"
-              className="inline-block whitespace-nowrap rounded-full bg-purple-600 px-5 py-2.5 font-medium text-white shadow-md transition-colors hover:bg-purple-700 shrink-0"
+              className="gradient-brand inline-block shrink-0 whitespace-nowrap rounded-full px-5 py-2.5 font-medium text-white shadow-md shadow-purple-600/25 transition-transform hover:-translate-y-0.5"
             >
               + Tambah User
             </Link>
@@ -433,7 +420,7 @@ export default async function KelolaPenggunaPage({
           ) : (
             <div className="custom-scrollbar overflow-x-auto rounded-xl border border-slate-200">
               <table className="min-w-[800px] w-full border-collapse whitespace-nowrap text-left text-sm">
-                <thead className="bg-purple-600 text-xs uppercase tracking-wider text-white">
+                <thead className="gradient-brand text-xs uppercase tracking-wider text-white">
                   <tr>
                     <th className="px-4 py-4 font-semibold">PENGGUNA</th>
                     <th className="px-4 py-4 text-center font-semibold">DIVISI</th>

@@ -9,7 +9,7 @@ export async function SettingBankTab() {
 
   return (
     <div className="flex flex-col gap-6">
-      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
+      <section className="shadow-card rounded-2xl border border-slate-200 bg-white p-6 md:p-8">
         <div className="mb-6 border-b border-slate-100 pb-6">
           <h2 className="mb-1 text-xl font-bold text-slate-900">Tambah Bank Baru</h2>
           <p className="text-sm text-slate-500">Tambahkan daftar bank atau rekening untuk digunakan dalam sistem.</p>
@@ -19,13 +19,13 @@ export async function SettingBankTab() {
             <label htmlFor="nama" className="text-sm font-semibold text-slate-700">Nama Bank / Rekening</label>
             <input id="nama" name="nama" type="text" placeholder="Contoh: BCA 1234567890 (Operasional)" required className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20" />
           </div>
-          <button type="submit" className="rounded-xl bg-purple-600 px-6 py-3 font-semibold text-white shadow-md transition-all hover:bg-purple-700 active:scale-[0.98]">
+          <button type="submit" className="gradient-brand rounded-xl px-6 py-3 font-semibold text-white shadow-md shadow-purple-600/25 transition-all hover:-translate-y-0.5 active:scale-[0.98]">
             Simpan Bank
           </button>
         </form>
       </section>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
+      <section className="shadow-card rounded-2xl border border-slate-200 bg-white p-6 md:p-8">
         <div className="mb-6 border-b border-slate-100 pb-6">
           <h2 className="mb-1 text-xl font-bold text-slate-900">Daftar Rekening Bank</h2>
           <p className="text-sm text-slate-500">Berikut adalah daftar bank yang sudah ditambahkan.</p>
