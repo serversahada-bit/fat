@@ -16,6 +16,13 @@ function getStatusLabel({
   return "Finance Pending";
 }
 
+function formatDateId(dateStr: string) {
+  return new Intl.DateTimeFormat("id-ID", {
+    dateStyle: "long",
+    timeZone: "Asia/Jakarta",
+  }).format(new Date(`${dateStr}T00:00:00`));
+}
+
 export function FinanceSubmissionLauncher({
   nominal,
   keterangan,
@@ -28,6 +35,9 @@ export function FinanceSubmissionLauncher({
   isManagerApproved,
   sisaBudget,
   hasPending,
+  todayStr,
+  financeSubmissionEnabled = true,
+  financeSubmissionStartDate,
 }: {
   nominal: number;
   keterangan: string;
@@ -40,13 +50,23 @@ export function FinanceSubmissionLauncher({
   isManagerApproved?: boolean;
   sisaBudget?: number;
   hasPending?: boolean;
+  todayStr?: string;
+  financeSubmissionEnabled?: boolean;
+  financeSubmissionStartDate?: string | null;
 }) {
   const [isOpen, setIsOpen] = useState(false);
 
   const isLegacyDisabled = Boolean(submittedStatus);
-  const isDisabled = sisaBudget !== undefined 
-    ? (hasPending || sisaBudget <= 0) 
+  const isBudgetDisabled = sisaBudget !== undefined
+    ? (hasPending || sisaBudget <= 0)
     : isLegacyDisabled;
+
+  const isNotYetOpen = Boolean(
+    financeSubmissionEnabled && todayStr && financeSubmissionStartDate && todayStr < financeSubmissionStartDate
+  );
+  const isScheduleDisabled = !financeSubmissionEnabled || isNotYetOpen;
+
+  const isDisabled = isBudgetDisabled || isScheduleDisabled;
 
   let buttonText = "Ajukan ke Finance";
   if (sisaBudget !== undefined) {
@@ -62,6 +82,10 @@ export function FinanceSubmissionLauncher({
       status: submittedStatus ?? "PENDING",
       isManagerApproved,
     });
+  }
+
+  if (!isBudgetDisabled && isNotYetOpen && financeSubmissionStartDate) {
+    buttonText = `Pengajuan mulai tanggal ${formatDateId(financeSubmissionStartDate)}`;
   }
 
   return (

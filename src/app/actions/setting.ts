@@ -177,6 +177,42 @@ export async function saveAllSignatures(kategori: string, signatures: { kategori
   revalidatePath("/dashboard/setting");
 }
 
+export async function getFinanceSubmissionSetting() {
+  const setting = await prisma.app_setting.upsert({
+    where: { id: "singleton" },
+    update: {},
+    create: { id: "singleton" },
+  });
+
+  return setting;
+}
+
+export async function updateFinanceSubmissionSetting(formData: FormData) {
+  await requireSuperAdminPermission(DASHBOARD_PERMISSIONS.USERS);
+
+  const enabled = formData.get("financeSubmissionEnabled") === "on";
+  const startDateStr = String(formData.get("financeSubmissionStartDate") ?? "").trim();
+  const startDate = startDateStr ? new Date(`${startDateStr}T00:00:00`) : null;
+
+  await prisma.app_setting.upsert({
+    where: { id: "singleton" },
+    update: {
+      financeSubmissionEnabled: enabled,
+      financeSubmissionStartDate: startDate,
+    },
+    create: {
+      id: "singleton",
+      financeSubmissionEnabled: enabled,
+      financeSubmissionStartDate: startDate,
+    },
+  });
+
+  revalidatePath("/dashboard/setting");
+  revalidatePath("/pengajuan/iklan");
+  revalidatePath("/pengajuan/bulanan");
+  redirect("/dashboard/setting?tab=finance-schedule");
+}
+
 // Force reload action
 export async function resetSubmissionDatabase(formData: FormData) {
   await requireSuperAdminPermission(DASHBOARD_PERMISSIONS.USERS);

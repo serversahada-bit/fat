@@ -10,7 +10,8 @@ import { SettingPajakTab } from "@/components/SettingPajakTab";
 import { SettingNamaTab } from "@/components/SettingNamaTab";
 import { SettingCanvasTab } from "@/components/SettingCanvasTab";
 import { SettingResetTab } from "@/components/SettingResetTab";
-import { Users, User, Landmark, Receipt, PenTool, Database } from "lucide-react";
+import { SettingFinanceScheduleTab } from "@/components/SettingFinanceScheduleTab";
+import { Users, User, Landmark, Receipt, PenTool, Database, CalendarClock } from "lucide-react";
 import {
   EMPLOYEE_PERMISSION_OPTIONS,
   SUPER_ADMIN_PERMISSION_OPTIONS,
@@ -89,6 +90,7 @@ export default async function KelolaPenggunaPage({
                 { tab: "bank", label: "Setting Bank", Icon: Landmark },
                 { tab: "pajak", label: "Setting Pajak", Icon: Receipt },
                 { tab: "canvas", label: "Setting Canvas", Icon: PenTool },
+                { tab: "finance-schedule", label: "Jadwal Finance", Icon: CalendarClock },
                 { tab: "reset", label: "Reset Data", Icon: Database },
               ].map(({ tab, label, Icon }) => (
                 <Link
@@ -497,6 +499,7 @@ export default async function KelolaPenggunaPage({
         {currentTab === "bank" && <SettingBankTab />}
         {currentTab === "pajak" && <SettingPajakTab />}
         {currentTab === "canvas" && <SettingCanvasTab />}
+        {currentTab === "finance-schedule" && <SettingFinanceScheduleTab />}
         {currentTab === "reset" && <SettingResetTab status={resetStatus} />}
         </div>
       </div>

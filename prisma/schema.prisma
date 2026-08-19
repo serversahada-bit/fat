@@ -245,6 +245,13 @@ model plafon_iklan {
   kebutuhan_iklan kebutuhan_iklan[]
 }
 
+model app_setting {
+  id                          String    @id @default("singleton")
+  financeSubmissionEnabled    Boolean   @default(true)
+  financeSubmissionStartDate  DateTime?
+  updatedAt                   DateTime  @updatedAt
+}
+
 model peminjaman_kuota_iklan {
   id                String   @id @default(cuid())
   peminjamId        String

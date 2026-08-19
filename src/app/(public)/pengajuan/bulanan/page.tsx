@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { AppShell } from "@/components/AppShell";
 import { createKebutuhanBulanan } from "@/app/actions/pengajuan";
+import { getFinanceSubmissionSetting } from "@/app/actions/setting";
 import { FinanceSubmissionLauncher } from "@/components/FinanceSubmissionLauncher";
 import { UploadInvoiceButton } from "@/components/UploadInvoiceButton";
 import { PengajuanBulananForm } from "@/components/PengajuanBulananForm";
@@ -34,6 +35,10 @@ export default async function PengajuanBulananPage({
   const navItems = getVisibleEmployeeNavItems(session.user);
   const dbUser = await prisma.user.findUnique({ where: { id: session.user.id } });
   const today = getTodayInJakarta();
+  const financeSetting = await getFinanceSubmissionSetting();
+  const financeSubmissionStartDateStr = financeSetting.financeSubmissionStartDate
+    ? new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" }).format(financeSetting.financeSubmissionStartDate)
+    : null;
 
   const params = await searchParams;
   const isFormOpen = params?.baru === "true";
@@ -287,6 +292,9 @@ export default async function PengajuanBulananPage({
                                   userName={session.user.name ?? ""}
                                   sisaBudget={sisaBudget}
                                   hasPending={financeData?.hasPending ?? false}
+                                  todayStr={today}
+                                  financeSubmissionEnabled={financeSetting.financeSubmissionEnabled}
+                                  financeSubmissionStartDate={financeSubmissionStartDateStr}
                                 />
                               </div>
                             )}
