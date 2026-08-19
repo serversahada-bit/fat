@@ -126,7 +126,10 @@ export function SemuaPengajuanForm({
     return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
   }, [defaultNominal]);
 
-  const [nominalTransaksi, setNominalTransaksi] = useState(() => sanitizeNominal(defaultNominal));
+  const [nominalTransaksi, setNominalTransaksi] = useState(() => {
+    const parsed = Number(defaultNominal);
+    return Number.isFinite(parsed) && parsed > 0 ? String(Math.trunc(parsed)) : "";
+  });
 
   const finalTipeTransaksi =
     tipeTransaksiPreset === "__other__" ? toUppercase(tipeTransaksiOther) : tipeTransaksiPreset;
