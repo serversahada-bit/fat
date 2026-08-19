@@ -192,7 +192,8 @@ export async function updateFinanceSubmissionSetting(formData: FormData) {
 
   const enabled = formData.get("financeSubmissionEnabled") === "on";
   const startDateStr = String(formData.get("financeSubmissionStartDate") ?? "").trim();
-  const startDate = startDateStr ? new Date(`${startDateStr}T00:00:00`) : null;
+  // Explicit +07:00 (WIB) offset so this doesn't depend on the server process's local timezone.
+  const startDate = startDateStr ? new Date(`${startDateStr}T00:00:00+07:00`) : null;
 
   await prisma.app_setting.upsert({
     where: { id: "singleton" },

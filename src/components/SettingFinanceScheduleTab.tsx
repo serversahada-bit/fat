@@ -2,7 +2,7 @@ import { getFinanceSubmissionSetting, updateFinanceSubmissionSetting } from "@/a
 
 function toDateInputValue(date: Date | null) {
   if (!date) return "";
-  return date.toISOString().slice(0, 10);
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" }).format(date);
 }
 
 export async function SettingFinanceScheduleTab() {
