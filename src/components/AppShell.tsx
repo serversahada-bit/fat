@@ -78,14 +78,16 @@ export function AppShell({
       <header className="sticky top-0 z-50 flex w-full min-w-0 items-center justify-between border-b border-slate-100 bg-white/85 px-4 py-4 backdrop-blur-md md:px-8">
         <div className="flex w-full items-center justify-between gap-4 md:w-auto">
           <Link href="/" className="flex items-center gap-3">
-            <div className="gradient-brand flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white shadow-md shadow-purple-600/25">
-              <Sparkles className="h-4 w-4" strokeWidth={2.25} />
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl overflow-hidden bg-white shadow-md shadow-purple-600/10 border border-slate-100">
+              <img src="/logo.png" alt="Great Finance Logo" className="h-full w-full object-contain p-1" />
             </div>
             <div>
               <div className="flex items-center gap-2 text-xl font-bold tracking-tight text-slate-900">
-                Fat<span className="text-gradient-brand">System</span>
+                Great<span className="text-purple-600 ml-1">Finance</span>
               </div>
-              <p className="mt-0.5 text-sm text-slate-400">{roleLabel} Area</p>
+              <p className="mt-0.5 text-[11px] font-medium tracking-wide text-slate-500 uppercase">
+                By PT Sahada Laku Utama
+              </p>
             </div>
           </Link>
 

@@ -147,9 +147,23 @@ export async function createKebutuhanIklan(formData: FormData) {
 
   const total = qty * hargaSatuan;
 
+  let plafon = await prisma.plafon_iklan.findUnique({
+    where: { bulan }
+  });
+
+  if (!plafon) {
+    plafon = await prisma.plafon_iklan.create({
+      data: {
+        bulan,
+        status: "DRAFT"
+      }
+    });
+  }
+
   await prisma.kebutuhan_iklan.create({
     data: {
       userId: session.user.id,
+      plafonId: plafon.id,
       bulan,
       platform,
       divisi,
@@ -414,4 +428,75 @@ export async function updateKebutuhanIklanEmployee(formData: FormData) {
   });
 
   revalidatePath("/pengajuan/iklan");
+}
+
+export async function createPeminjamanKuota(formData: FormData) {
+  const session = await requireRole("KARYAWAN");
+  
+  const pemberiPinjamanId = String(formData.get("pemberiPinjamanId") ?? "");
+  const nominal = parseFloat(String(formData.get("nominal") ?? "0"));
+  const alasan = String(formData.get("alasan") ?? "").trim();
+
+  if (!pemberiPinjamanId || isNaN(nominal) || nominal <= 0) {
+    throw new Error("Pemberi pinjaman dan nominal wajib diisi.");
+  }
+
+  if (pemberiPinjamanId === session.user.id) {
+    throw new Error("Tidak dapat meminjam dari diri sendiri.");
+  }
+
+  await prisma.peminjaman_kuota_iklan.create({
+    data: {
+      peminjamId: session.user.id,
+      pemberiPinjamanId,
+      nominal,
+      alasan: alasan || null,
+      status: "PENDING_IZIN"
+    }
+  });
+
+  revalidatePath("/pengajuan/iklan");
+}
+
+export async function updatePeminjamanKuotaStatus(formData: FormData) {
+  const session = await requireRole("KARYAWAN");
+  
+  const pinjamanId = String(formData.get("pinjamanId") ?? "");
+  const status = String(formData.get("status") ?? "");
+
+  if (!pinjamanId || !["DISETUJUI", "DITOLAK"].includes(status)) return;
+
+  const pinjaman = await prisma.peminjaman_kuota_iklan.findUnique({
+    where: { id: pinjamanId }
+  });
+
+  if (!pinjaman || pinjaman.pemberiPinjamanId !== session.user.id) {
+    throw new Error("Tidak berhak mengubah status pinjaman ini.");
+  }
+
+  await prisma.peminjaman_kuota_iklan.update({
+    where: { id: pinjamanId },
+    data: { status }
+  });
+
+  revalidatePath("/pengajuan/iklan");
+}
+
+export async function updateTotalPlafon(formData: FormData) {
+  await requireAdminPermission(DASHBOARD_PERMISSIONS.IKLAN);
+
+  const plafonId = String(formData.get("plafonId") ?? "");
+  const totalPlafonStr = String(formData.get("totalPlafon") ?? "");
+  const totalPlafon = parseFloat(totalPlafonStr);
+
+  if (!plafonId || isNaN(totalPlafon) || totalPlafon < 0) {
+    throw new Error("Plafon ID dan total Plafon valid wajib diisi.");
+  }
+
+  await prisma.plafon_iklan.update({
+    where: { id: plafonId },
+    data: { totalPlafon }
+  });
+
+  revalidatePath("/dashboard/iklan");
 }

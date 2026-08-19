@@ -630,7 +630,7 @@ export function ExportPDFButton({
       const [logo, wave, signatures] =
         await Promise.all([
           loadImageAsBase64(
-            "/favicon.ico",
+            "/sas.png",
             true,
           ),
 

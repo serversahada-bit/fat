@@ -1,4 +1,4 @@
-﻿export const dynamic = "force-dynamic";
+export const dynamic = "force-dynamic";
 
 import { AppShell } from "@/components/AppShell";
 import { createUser, deleteUser, updateUser } from "@/app/actions/user";
@@ -448,7 +448,7 @@ export default async function KelolaPenggunaPage({
                       <tr key={user.id} className="transition-colors hover:bg-slate-50">
                         <td className="px-4 py-4">
                           <div className="font-bold text-slate-900">{user.name || "Tanpa Nama"}</div>
-                          <div className="mt-0.5 text-xs text-slate-500">@{user.username || "-"} â€¢ {user.email || "Tanpa Email"}</div>
+                          <div className="mt-0.5 text-xs text-slate-500">@{user.username || "-"} &bull; {user.email || "Tanpa Email"}</div>
                         </td>
                         <td className="px-4 py-4 text-center text-slate-600">{user.divisi || "-"}</td>
                         <td className="min-w-[200px] px-4 py-4 whitespace-normal">

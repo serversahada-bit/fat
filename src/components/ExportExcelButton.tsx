@@ -130,7 +130,7 @@ export function ExportExcelButton({ data, fileName = "Semua_Pengajuan" }: Export
     try {
       const ExcelJS = (await import("exceljs")).default;
       const workbook = new ExcelJS.Workbook();
-      workbook.creator = "Fat System";
+      workbook.creator = "Great Finance";
       workbook.created = new Date();
 
       const sheet = workbook.addWorksheet("Semua Pengajuan", {

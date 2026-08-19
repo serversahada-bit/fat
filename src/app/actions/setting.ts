@@ -1,4 +1,4 @@
-﻿"use server";
+"use server";
 
 import { mkdir, rm } from "node:fs/promises";
 import { revalidatePath } from "next/cache";
@@ -186,17 +186,25 @@ export async function resetSubmissionDatabase(formData: FormData) {
     redirect("/dashboard/setting?tab=reset&status=confirm-error");
   }
 
+  let isSuccess = false;
+
   try {
     await prisma.$transaction([
       prisma.pengajuan.deleteMany(),
       prisma.kebutuhan_bulanan.deleteMany(),
       prisma.kebutuhan_iklan.deleteMany(),
+      prisma.peminjaman_kuota_iklan.deleteMany(),
+      prisma.plafon_iklan.deleteMany(),
       prisma.semua_pengajuan.deleteMany(),
     ]);
 
-    const uploadRootDir = getUploadRootDir();
-    await rm(uploadRootDir, { recursive: true, force: true });
-    await mkdir(uploadRootDir, { recursive: true });
+    try {
+      const uploadRootDir = getUploadRootDir();
+      await rm(uploadRootDir, { recursive: true, force: true });
+      await mkdir(uploadRootDir, { recursive: true });
+    } catch (fsError) {
+      console.warn("Gagal menghapus folder uploads, mungkin sedang dilock oleh Windows:", fsError);
+    }
 
     revalidatePath("/dashboard");
     revalidatePath("/dashboard/bulanan");
@@ -209,8 +217,14 @@ export async function resetSubmissionDatabase(formData: FormData) {
     revalidatePath("/pengajuan/semua");
     revalidatePath("/dashboard/setting");
 
+    isSuccess = true;
+  } catch (err) {
+    console.error("Action reset error:", err);
+  }
+
+  if (isSuccess) {
     redirect("/dashboard/setting?tab=reset&status=reset-ok");
-  } catch {
+  } else {
     redirect("/dashboard/setting?tab=reset&status=reset-error");
   }
 }

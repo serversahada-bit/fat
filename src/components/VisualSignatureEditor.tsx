@@ -255,7 +255,7 @@ export function VisualSignatureEditor({ initialSignatures }: { initialSignatures
           {/* Header Mockup */}
           {/* Logo Kiri */}
           <img 
-            src="/favicon.ico" 
+            src="/sas.png" 
             alt="Logo"
             className="absolute object-contain object-left-top"
             style={{ 

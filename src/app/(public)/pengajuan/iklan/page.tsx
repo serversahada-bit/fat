@@ -1,10 +1,11 @@
 export const dynamic = "force-dynamic";
 
 import { AppShell } from "@/components/AppShell";
-import { createKebutuhanIklan } from "@/app/actions/pengajuan";
+import { createKebutuhanIklan, createPeminjamanKuota, updatePeminjamanKuotaStatus } from "@/app/actions/pengajuan";
 import { FinanceSubmissionLauncher } from "@/components/FinanceSubmissionLauncher";
 import { UploadInvoiceButton } from "@/components/UploadInvoiceButton";
 import { EditableAmount } from "@/components/EditableAmount";
+import { CurrencyInput } from "@/components/CurrencyInput";
 import { EMPLOYEE_PERMISSIONS, requireEmployeePermission } from "@/lib/auth";
 import { getVisibleEmployeeNavItems } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
@@ -52,7 +53,7 @@ export default async function PengajuanIklanPage({
     whereClause.status = statusFilter;
   }
 
-  const [daftarPengajuan, financeSubmissions] = await Promise.all([
+  const [daftarPengajuan, financeSubmissions, pinjamanMasuk, pinjamanKeluar, daftarAdvertiser, globalApprovedKebutuhan, semuaPlafon] = await Promise.all([
     prisma.kebutuhan_iklan.findMany({
       where: whereClause,
       orderBy: { createdAt: "desc" },
@@ -77,6 +78,28 @@ export default async function PengajuanIklanPage({
       },
       orderBy: { createdAt: "desc" },
     }),
+    prisma.peminjaman_kuota_iklan.findMany({
+      where: { peminjamId: session.user.id },
+      include: { pemberiPinjaman: true }
+    }),
+    prisma.peminjaman_kuota_iklan.findMany({
+      where: { pemberiPinjamanId: session.user.id },
+      include: { peminjam: true }
+    }),
+    prisma.user.findMany({
+      where: { 
+        role: "KARYAWAN", 
+        id: { not: session.user.id },
+        permissions: { contains: "pengajuan.iklan" }
+      },
+      select: { id: true, name: true, username: true }
+    }),
+    prisma.kebutuhan_iklan.groupBy({
+      by: ['bulan'],
+      where: { status: 'APPROVED' },
+      _sum: { total: true }
+    }),
+    prisma.plafon_iklan.findMany()
   ]);
 
   const financeDataMap = new Map<string, { 
@@ -115,6 +138,42 @@ export default async function PengajuanIklanPage({
       });
     }
   }
+
+  const ratioPerBulan = new Map<string, number>();
+  for (const group of globalApprovedKebutuhan) {
+    const bulan = group.bulan;
+    const globalTotal = group._sum.total || 0;
+    const plafon = semuaPlafon.find(p => p.bulan === bulan);
+    
+    if (plafon && plafon.totalPlafon > 0 && globalTotal > 0) {
+      ratioPerBulan.set(bulan, plafon.totalPlafon / globalTotal);
+    } else {
+      ratioPerBulan.set(bulan, 1);
+    }
+  }
+
+  let totalRabAsli = 0;
+  let totalRabEfisiensi = 0;
+  daftarPengajuan.forEach(p => { 
+    if (p.status === "APPROVED") {
+      totalRabAsli += p.total;
+      const ratio = ratioPerBulan.get(p.bulan) || 1;
+      totalRabEfisiensi += p.total * ratio;
+    }
+  });
+  
+  let totalRealisasiKeseluruhan = 0;
+  for (const [_, data] of Array.from(financeDataMap.entries())) {
+     totalRealisasiKeseluruhan += data.totalRealisasi;
+  }
+
+  let totalPinjamanMasuk = 0;
+  pinjamanMasuk.forEach(p => { if (p.status === "DISETUJUI") totalPinjamanMasuk += p.nominal; });
+
+  let totalPinjamanKeluar = 0;
+  pinjamanKeluar.forEach(p => { if (p.status === "DISETUJUI") totalPinjamanKeluar += p.nominal; });
+
+  const totalSisaKuota = totalRabEfisiensi + totalPinjamanMasuk - totalRealisasiKeseluruhan - totalPinjamanKeluar;
 
   const headerActions = (
     <div className="flex w-full items-center gap-3 md:w-auto">
@@ -203,7 +262,7 @@ export default async function PengajuanIklanPage({
                     </div>
                     <div className="flex flex-col gap-2">
                       <label htmlFor="hargaSatuan" className="text-sm font-semibold text-slate-700">Budget Satuan (Rp)</label>
-                      <input id="hargaSatuan" name="hargaSatuan" type="number" min="0" step="1" placeholder="Budget" required className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20" />
+                      <CurrencyInput id="hargaSatuan" name="hargaSatuan" placeholder="Budget" required className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20" />
                     </div>
                   </div>
 
@@ -231,6 +290,112 @@ export default async function PengajuanIklanPage({
             </div>
           </div>
         )}
+
+        <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="shadow-card rounded-2xl border border-slate-200 bg-white p-6">
+            <h3 className="text-lg font-bold text-slate-800 mb-4">Ringkasan Kuota Anda</h3>
+            <div className="space-y-3">
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-500">Total RAB Asli (Disetujui Admin):</span>
+                <span className="font-semibold text-slate-700">{formatCurrency(totalRabAsli)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-purple-600 font-medium">Budget Efisiensi (Plafon):</span>
+                <span className="font-bold text-purple-700">{formatCurrency(totalRabEfisiensi)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-500">Total Telah Dicairkan:</span>
+                <span className="font-semibold text-red-500">-{formatCurrency(totalRealisasiKeseluruhan)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-500">Pinjaman Masuk (Disetujui):</span>
+                <span className="font-semibold text-emerald-600">+{formatCurrency(totalPinjamanMasuk)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-500">Pinjaman Keluar (Disetujui):</span>
+                <span className="font-semibold text-amber-600">-{formatCurrency(totalPinjamanKeluar)}</span>
+              </div>
+              <div className="pt-3 border-t border-slate-100 flex justify-between">
+                <span className="font-bold text-slate-800">SISA KUOTA TOTAL:</span>
+                <span className="font-bold text-purple-700 text-lg">{formatCurrency(totalSisaKuota)}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="shadow-card rounded-2xl border border-slate-200 bg-white p-6">
+            <h3 className="text-lg font-bold text-slate-800 mb-4">Minta Kuota Tambahan</h3>
+            <form action={createPeminjamanKuota} className="flex flex-col gap-3">
+              <div>
+                <label className="text-xs font-semibold text-slate-600">Pilih Advertiser</label>
+                <select name="pemberiPinjamanId" required className="w-full mt-1 rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                  <option value="">Pilih...</option>
+                  {daftarAdvertiser.map(adv => (
+                    <option key={adv.id} value={adv.id}>{adv.name || adv.username}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-slate-600">Nominal (Rp)</label>
+                <CurrencyInput name="nominal" required className="w-full mt-1 rounded-lg border border-slate-200 px-3 py-2 text-sm" placeholder="Contoh: 2000000"/>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-slate-600">Alasan</label>
+                <input type="text" name="alasan" className="w-full mt-1 rounded-lg border border-slate-200 px-3 py-2 text-sm" placeholder="Opsional"/>
+              </div>
+              <button type="submit" className="gradient-brand text-white font-semibold py-2 rounded-lg text-sm hover:opacity-90 mt-2">Kirim Permintaan</button>
+            </form>
+          </div>
+
+          {(pinjamanMasuk.length > 0 || pinjamanKeluar.length > 0) && (
+            <div className="md:col-span-2 shadow-card rounded-2xl border border-slate-200 bg-white p-6">
+               <h3 className="text-lg font-bold text-slate-800 mb-4">Riwayat Pinjaman Kuota</h3>
+               <div className="overflow-x-auto">
+                 <table className="w-full text-sm text-left">
+                   <thead className="bg-slate-50 text-slate-600">
+                     <tr>
+                       <th className="px-4 py-2">Tipe</th>
+                       <th className="px-4 py-2">Dengan Siapa</th>
+                       <th className="px-4 py-2">Nominal</th>
+                       <th className="px-4 py-2">Alasan</th>
+                       <th className="px-4 py-2">Status</th>
+                       <th className="px-4 py-2">Aksi</th>
+                     </tr>
+                   </thead>
+                   <tbody>
+                     {pinjamanKeluar.map(p => (
+                       <tr key={p.id} className="border-t border-slate-100">
+                         <td className="px-4 py-3"><span className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs font-bold">DARI TEMAN MINTA KE SAYA</span></td>
+                         <td className="px-4 py-3">{p.peminjam?.name || p.peminjam?.username}</td>
+                         <td className="px-4 py-3 font-semibold">{formatCurrency(p.nominal)}</td>
+                         <td className="px-4 py-3">{p.alasan || "-"}</td>
+                         <td className="px-4 py-3 font-bold">{p.status}</td>
+                         <td className="px-4 py-3">
+                           {p.status === "PENDING_IZIN" && (
+                             <form action={updatePeminjamanKuotaStatus} className="flex gap-2">
+                               <input type="hidden" name="pinjamanId" value={p.id} />
+                               <button type="submit" name="status" value="DISETUJUI" className="bg-emerald-500 text-white px-3 py-1 rounded text-xs font-semibold hover:bg-emerald-600 transition-colors">Setujui</button>
+                               <button type="submit" name="status" value="DITOLAK" className="bg-red-500 text-white px-3 py-1 rounded text-xs font-semibold hover:bg-red-600 transition-colors">Tolak</button>
+                             </form>
+                           )}
+                         </td>
+                       </tr>
+                     ))}
+                     {pinjamanMasuk.map(p => (
+                       <tr key={p.id} className="border-t border-slate-100">
+                         <td className="px-4 py-3"><span className="bg-purple-100 text-purple-700 px-2 py-1 rounded text-xs font-bold">SAYA MINTA KE TEMAN</span></td>
+                         <td className="px-4 py-3">{p.pemberiPinjaman?.name || p.pemberiPinjaman?.username}</td>
+                         <td className="px-4 py-3 font-semibold">{formatCurrency(p.nominal)}</td>
+                         <td className="px-4 py-3">{p.alasan || "-"}</td>
+                         <td className="px-4 py-3 font-bold">{p.status}</td>
+                         <td className="px-4 py-3 text-slate-400">Menunggu</td>
+                       </tr>
+                     ))}
+                   </tbody>
+                 </table>
+               </div>
+            </div>
+          )}
+        </section>
 
         <section className="shadow-card rounded-2xl border border-slate-200 bg-white p-4 md:p-8">
           <div className="mb-6 flex flex-col justify-between gap-4 border-b border-slate-100 pb-6 sm:flex-row sm:items-center">
@@ -278,7 +443,9 @@ export default async function PengajuanIklanPage({
                   {daftarPengajuan.map((item: any) => {
                     const financeData = financeDataMap.get(item.id) ?? null;
                     const totalRealisasi = financeData?.totalRealisasi ?? 0;
-                    const sisaBudget = (item.total ?? 0) - totalRealisasi;
+                    const rowSisaBudget = (item.total ?? 0) - totalRealisasi;
+                    const itemRatio = ratioPerBulan.get(item.bulan) || 1;
+                    const itemEfisiensi = item.total * itemRatio;
 
                     return (
                       <tr key={item.id} className="transition-colors hover:bg-slate-50">
@@ -295,14 +462,14 @@ export default async function PengajuanIklanPage({
                               <FinanceSubmissionLauncher
                                 defaultTanggal={today}
                                 keterangan={item.rincian}
-                                nominal={sisaBudget > 0 ? sisaBudget : item.total}
+                                nominal={totalSisaKuota > 0 ? totalSisaKuota : itemEfisiensi}
                                 sourceId={item.id}
                                 sourceType="iklan"
                                 submittedStatus={financeData?.status}
                                 isManagerApproved={financeData?.isManagerApproved}
                                 userEmail={session.user.email ?? ""}
                                 userName={session.user.name ?? ""}
-                                sisaBudget={sisaBudget}
+                                sisaBudget={totalSisaKuota}
                                 hasPending={financeData?.hasPending ?? false}
                               />
                             </div>
@@ -355,7 +522,7 @@ export default async function PengajuanIklanPage({
                         </td>
                         <td className="px-4 py-4 text-right font-bold text-slate-900">{formatCurrency(item.total)}</td>
                         <td className="px-4 py-4 text-right font-semibold text-emerald-600">{formatCurrency(totalRealisasi)}</td>
-                        <td className="px-4 py-4 text-right font-bold text-amber-600">{formatCurrency(sisaBudget)}</td>
+                        <td className="px-4 py-4 text-right font-bold text-amber-600">{formatCurrency(rowSisaBudget)}</td>
                         <td className="min-w-[200px] whitespace-normal px-4 py-4 text-xs">
                           {item.catatanTambahan && (
                             <div className="mb-1.5">

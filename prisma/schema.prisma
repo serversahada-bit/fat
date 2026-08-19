@@ -71,6 +71,8 @@ model user {
   kebutuhan_bulanan  kebutuhan_bulanan[]
   kebutuhan_iklan    kebutuhan_iklan[]
   semua_pengajuan    semua_pengajuan[]
+  pinjamanKeluar     peminjaman_kuota_iklan[] @relation("PeminjamKuota")
+  pinjamanMasuk      peminjaman_kuota_iklan[] @relation("PemberiPinjaman")
 }
 
 model pengajuan {
@@ -138,9 +140,12 @@ model kebutuhan_iklan {
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
   user            user            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plafonId        String?
+  plafon          plafon_iklan?   @relation(fields: [plafonId], references: [id], onDelete: SetNull)
 
   @@index([status])
   @@index([userId])
+  @@index([plafonId])
 }
 
 model semua_pengajuan {
@@ -227,4 +232,32 @@ model master_canvas {
   y         Float    @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model plafon_iklan {
+  id          String   @id @default(cuid())
+  bulan       String   @unique
+  totalPlafon Float    @default(0)
+  status      String   @default("DRAFT")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  kebutuhan_iklan kebutuhan_iklan[]
+}
+
+model peminjaman_kuota_iklan {
+  id                String   @id @default(cuid())
+  peminjamId        String
+  pemberiPinjamanId String
+  nominal           Float
+  alasan            String?  @db.Text
+  status            String   @default("PENDING_IZIN")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  peminjam          user     @relation("PeminjamKuota", fields: [peminjamId], references: [id], onDelete: Cascade)
+  pemberiPinjaman   user     @relation("PemberiPinjaman", fields: [pemberiPinjamanId], references: [id], onDelete: Cascade)
+
+  @@index([peminjamId])
+  @@index([pemberiPinjamanId])
 }

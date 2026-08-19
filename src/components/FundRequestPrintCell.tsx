@@ -144,7 +144,7 @@ async function createFundRequestPdf(data: FundRequestPrintData, tipePengajuan: s
   const pajak = normalize(data.jenisPajak);
   const appliedBy = data.email || data.userName || "";
   const verifiedBy = data.verifiedFinance ? `3 0524 0106 - ${FINANCE_EMAIL}` : "";
-  const logo = await loadImageAsDataUrl("/favicon.ico");
+  const logo = await loadImageAsDataUrl("/sas.png");
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(14);

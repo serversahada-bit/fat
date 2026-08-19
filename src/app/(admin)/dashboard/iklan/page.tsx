@@ -4,6 +4,7 @@ import { AppShell } from "@/components/AppShell";
 import { ApprovalDropdown } from "@/components/ApprovalDropdown";
 import { ApprovalNote } from "@/components/ApprovalNote";
 import { EditableAmount } from "@/components/EditableAmount";
+import { EditablePlafonAmount } from "@/components/EditablePlafonAmount";
 import { ExportPDFButton } from "@/components/ExportPDFButton";
 import { DASHBOARD_PERMISSIONS, requireAdminPermission } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -85,6 +86,22 @@ export default async function ApprovalIklanPage({
     include: { user: true },
   });
 
+  const currentBulan = (() => {
+    const date = new Date();
+    const namaBulan = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+    return `${namaBulan[date.getMonth()]} ${date.getFullYear()}`;
+  })();
+
+  const plafonBulanIni = await prisma.plafon_iklan.findUnique({
+    where: { bulan: currentBulan }
+  });
+
+  const totalPengajuanBulanIni = await prisma.kebutuhan_iklan.aggregate({
+    where: { bulan: currentBulan },
+    _sum: { total: true }
+  });
+  const totalRABBulanIni = totalPengajuanBulanIni._sum.total || 0;
+
   return (
     <AppShell user={session.user}
       title="Approval Iklan"
@@ -92,6 +109,39 @@ export default async function ApprovalIklanPage({
       navItems={navItems}
     >
       <div className="grid grid-cols-1 gap-6">
+        <section className="shadow-card overflow-hidden rounded-2xl border border-purple-200 bg-gradient-to-br from-purple-600 to-purple-800 text-white p-6 relative">
+          <div className="absolute -right-10 -top-10 opacity-10">
+            <svg width="200" height="200" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+          </div>
+          <div className="relative z-10 flex flex-col justify-between gap-6 md:flex-row md:items-center">
+            <div>
+              <h2 className="text-xl font-bold">Ringkasan Plafon Iklan ({currentBulan})</h2>
+              <p className="mt-1 text-purple-100">Pantau total pengajuan dan kelola budget final (Plafon Induk) bulan ini.</p>
+            </div>
+            
+            <div className="flex flex-wrap gap-4">
+              <div className="rounded-xl bg-black/20 p-4 backdrop-blur-sm">
+                <div className="text-xs font-semibold uppercase tracking-wider text-purple-200">Total Pengajuan (RAB)</div>
+                <div className="mt-1 text-2xl font-bold">{formatCurrency(totalRABBulanIni)}</div>
+              </div>
+              
+              <div className="rounded-xl bg-white/10 p-4 backdrop-blur-sm border border-white/20">
+                <div className="text-xs font-semibold uppercase tracking-wider text-purple-100">Budget Plafon Final Disetujui</div>
+                <div className="mt-1">
+                  {plafonBulanIni ? (
+                    <EditablePlafonAmount 
+                      plafonId={plafonBulanIni.id} 
+                      initialValue={plafonBulanIni.totalPlafon} 
+                    />
+                  ) : (
+                    <div className="text-sm italic text-purple-200 mt-2">Belum ada pengajuan bulan ini</div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section className="shadow-card rounded-2xl border border-slate-200 bg-white p-4 md:p-8">
           <div className="mb-6 flex flex-col justify-between gap-4 border-b border-slate-100 pb-6 sm:flex-row sm:items-center">
             <div className="flex flex-wrap items-center gap-2">

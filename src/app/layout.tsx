@@ -4,7 +4,7 @@ import { Providers } from "@/components/Providers";
 import { PollingStatus } from "@/components/PollingStatus";
 
 export const metadata: Metadata = {
-  title: "Fat System",
+  title: "Great Finance",
   description: "Sistem pengajuan karyawan dan approval admin",
 };
 
