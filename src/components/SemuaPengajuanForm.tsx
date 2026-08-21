@@ -118,7 +118,7 @@ export function SemuaPengajuanForm({
   const [namaPenerima, setNamaPenerima] = useState("");
   const [detailBankPenerima, setDetailBankPenerima] = useState("");
   const [nomorRekeningHp, setNomorRekeningHp] = useState("");
-  const [keterangan, setKeterangan] = useState(toUppercase(defaultKeterangan));
+  const [keterangan, setKeterangan] = useState("");
   const [nominalError, setNominalError] = useState(false);
 
   const approvalNominal = useMemo(() => {
@@ -377,14 +377,24 @@ export function SemuaPengajuanForm({
             <label className="text-sm font-semibold text-slate-700">
               BERITA TRANSAKSI / KETERANGAN PERMOHONAN DANA
             </label>
+            {defaultKeterangan && (
+              <div className="rounded-xl border border-purple-100 bg-purple-50 px-4 py-3 text-sm text-purple-900">
+                <span className="font-semibold">Sumber Kuota:</span> {defaultKeterangan}
+                <FieldHint>
+                  Dana dari kuota ini bisa dipakai untuk keperluan apa pun. Jelaskan transaksi yang sebenarnya di bawah, tidak harus sama dengan sumber kuota di atas.
+                </FieldHint>
+              </div>
+            )}
             <textarea
               className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm uppercase text-slate-900 outline-none focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20"
               name="keterangan"
               onChange={(event) => setKeterangan(toUppercase(event.target.value))}
+              placeholder="CONTOH: BELI LANGGANAN CHATGPT PLUS"
+              required
               rows={4}
               value={keterangan}
             />
-            <FieldHint>MOHON DIISI DENGAN HURUF KAPITAL</FieldHint>
+            <FieldHint>MOHON DIISI DENGAN HURUF KAPITAL, SESUAI TRANSAKSI YANG SEBENARNYA</FieldHint>
           </div>
 
           <div className="flex flex-col gap-2 md:col-span-2">

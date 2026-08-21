@@ -5,6 +5,7 @@ import { ApprovalDropdown } from "@/components/ApprovalDropdown";
 import { ApprovalNote } from "@/components/ApprovalNote";
 import { EditableAmount } from "@/components/EditableAmount";
 import { EditablePlafonAmount } from "@/components/EditablePlafonAmount";
+import { EditableTotalPengajuanRab } from "@/components/EditableTotalPengajuanRab";
 import { ExportPDFButton } from "@/components/ExportPDFButton";
 import { DASHBOARD_PERMISSIONS, requireAdminPermission } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -100,7 +101,8 @@ export default async function ApprovalIklanPage({
     where: { bulan: currentBulan },
     _sum: { total: true }
   });
-  const totalRABBulanIni = totalPengajuanBulanIni._sum.total || 0;
+  const totalRABHitungOtomatis = totalPengajuanBulanIni._sum.total || 0;
+  const totalRABBulanIni = plafonBulanIni?.totalPengajuanRabOverride ?? totalRABHitungOtomatis;
 
   return (
     <AppShell user={session.user}
@@ -122,7 +124,21 @@ export default async function ApprovalIklanPage({
             <div className="flex flex-wrap gap-4">
               <div className="rounded-xl bg-black/20 p-4 backdrop-blur-sm">
                 <div className="text-xs font-semibold uppercase tracking-wider text-purple-200">Total Pengajuan (RAB)</div>
-                <div className="mt-1 text-2xl font-bold">{formatCurrency(totalRABBulanIni)}</div>
+                <div className="mt-1 text-2xl font-bold">
+                  {plafonBulanIni ? (
+                    <EditableTotalPengajuanRab
+                      plafonId={plafonBulanIni.id}
+                      initialValue={totalRABBulanIni}
+                    />
+                  ) : (
+                    formatCurrency(totalRABBulanIni)
+                  )}
+                </div>
+                {plafonBulanIni?.totalPengajuanRabOverride != null && (
+                  <div className="mt-1 text-[11px] text-purple-200">
+                    Hasil hitung otomatis: {formatCurrency(totalRABHitungOtomatis)}
+                  </div>
+                )}
               </div>
               
               <div className="rounded-xl bg-white/10 p-4 backdrop-blur-sm border border-white/20">
@@ -212,12 +228,12 @@ export default async function ApprovalIklanPage({
                       </td>
                       <td className="px-4 py-4 text-center font-medium text-slate-700">
                         <div className="flex items-center justify-center gap-1">
-                          <EditableAmount pengajuanId={item.id} initialValue={item.qty} field="qty" type="iklan" /> {item.satuan}
+                          <EditableAmount pengajuanId={item.id} initialValue={item.qty} field="qty" type="iklan" isEditable={item.status === "PENDING"} /> {item.satuan}
                         </div>
                       </td>
                       <td className="px-4 py-4 text-right text-slate-600">
                         <div className="flex justify-end">
-                          <EditableAmount pengajuanId={item.id} initialValue={item.hargaSatuan} field="hargaSatuan" type="iklan" />
+                          <EditableAmount pengajuanId={item.id} initialValue={item.hargaSatuan} field="hargaSatuan" type="iklan" isEditable={item.status === "PENDING"} />
                         </div>
                       </td>
                       <td className="px-4 py-4 text-right font-bold text-slate-900">{formatCurrency(item.total)}</td>

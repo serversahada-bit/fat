@@ -135,7 +135,7 @@ export default async function KelolaPenggunaPage({
                       <label htmlFor="divisi" className="text-sm font-semibold text-slate-700">Divisi</label>
                       <select id="divisi" name="divisi" required className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20">
                         <option value="">Pilih Divisi...</option>
-                        {['Human Capital', 'Marketing Branding', 'Advertaiser', 'FAT', 'Marketplace', 'Fulfillment', 'IT'].map((div) => (
+                        {['Human Capital', 'Marketing Branding', 'Advertaiser', 'FAT', 'Marketplace', 'Fulfillment', 'IT', 'Marcom', 'Meta', 'CRM', 'CSO', 'Tiktok'].map((div) => (
                           <option key={div} value={div}>{div}</option>
                         ))}
                       </select>
@@ -264,7 +264,7 @@ export default async function KelolaPenggunaPage({
                       <label htmlFor="edit-divisi" className="text-sm font-semibold text-slate-700">Divisi</label>
                       <select id="edit-divisi" name="divisi" defaultValue={selectedUser.divisi || ""} required className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20">
                         <option value="">Pilih Divisi...</option>
-                        {['Human Capital', 'Marketing Branding', 'Advertaiser', 'FAT', 'Marketplace', 'Fulfillment', 'IT'].map((div) => (
+                        {['Human Capital', 'Marketing Branding', 'Advertaiser', 'FAT', 'Marketplace', 'Fulfillment', 'IT', 'Marcom', 'Meta', 'CRM', 'CSO', 'Tiktok'].map((div) => (
                           <option key={div} value={div}>{div}</option>
                         ))}
                       </select>

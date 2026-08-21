@@ -160,12 +160,12 @@ export default async function ApprovalBulananPage({
                       </td>
                       <td className="px-4 py-4 text-center font-medium text-slate-700">
                         <div className="flex items-center justify-center gap-1">
-                          <EditableAmount pengajuanId={item.id} initialValue={item.qty} field="qty" type="bulanan" /> {item.satuan}
+                          <EditableAmount pengajuanId={item.id} initialValue={item.qty} field="qty" type="bulanan" isEditable={item.status === "PENDING"} /> {item.satuan}
                         </div>
                       </td>
                       <td className="px-4 py-4 text-right text-slate-600">
                         <div className="flex justify-end">
-                          <EditableAmount pengajuanId={item.id} initialValue={item.hargaSatuan} field="hargaSatuan" type="bulanan" />
+                          <EditableAmount pengajuanId={item.id} initialValue={item.hargaSatuan} field="hargaSatuan" type="bulanan" isEditable={item.status === "PENDING"} />
                         </div>
                       </td>
                       <td className="px-4 py-4 text-right font-bold text-slate-900">{formatCurrency(item.total)}</td>

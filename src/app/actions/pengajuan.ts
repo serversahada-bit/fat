@@ -191,8 +191,10 @@ export async function updateKebutuhanBulananStatus(formData: FormData) {
   const existing = await prisma.kebutuhan_bulanan.findUnique({ where: { id: pengajuanId } });
   if (!existing) return;
 
+  const canEditAmount = existing.status === "PENDING";
+
   const updateData: Record<string, string | null | number> = {};
-  
+
   if (formData.has("status")) {
     const status = String(formData.get("status"));
     if (["PENDING", "APPROVED", "REJECTED"].includes(status)) {
@@ -211,37 +213,39 @@ export async function updateKebutuhanBulananStatus(formData: FormData) {
   let shouldUpdateTotal = false;
   let shouldUpdateHargaSatuan = false;
 
-  if (formData.has("qty")) {
-    const qty = parseInt(String(formData.get("qty")), 10);
-    if (!isNaN(qty)) {
-      newQty = qty;
-      updateData.qty = qty;
-      shouldUpdateTotal = true;
+  if (canEditAmount) {
+    if (formData.has("qty")) {
+      const qty = parseInt(String(formData.get("qty")), 10);
+      if (!isNaN(qty)) {
+        newQty = qty;
+        updateData.qty = qty;
+        shouldUpdateTotal = true;
+      }
     }
-  }
 
-  if (formData.has("hargaSatuan")) {
-    const hargaSatuan = parseFloat(String(formData.get("hargaSatuan")));
-    if (!isNaN(hargaSatuan)) {
-      newHargaSatuan = hargaSatuan;
-      updateData.hargaSatuan = hargaSatuan;
-      shouldUpdateTotal = true;
+    if (formData.has("hargaSatuan")) {
+      const hargaSatuan = parseFloat(String(formData.get("hargaSatuan")));
+      if (!isNaN(hargaSatuan)) {
+        newHargaSatuan = hargaSatuan;
+        updateData.hargaSatuan = hargaSatuan;
+        shouldUpdateTotal = true;
+      }
     }
-  }
 
-  if (formData.has("total")) {
-    const total = parseFloat(String(formData.get("total")));
-    if (!isNaN(total)) {
-      newTotal = total;
-      updateData.total = total;
-      shouldUpdateHargaSatuan = true;
+    if (formData.has("total")) {
+      const total = parseFloat(String(formData.get("total")));
+      if (!isNaN(total)) {
+        newTotal = total;
+        updateData.total = total;
+        shouldUpdateHargaSatuan = true;
+      }
     }
-  }
 
-  if (shouldUpdateTotal && !formData.has("total")) {
-    updateData.total = newQty * newHargaSatuan;
-  } else if (shouldUpdateHargaSatuan && !formData.has("hargaSatuan") && newQty !== 0) {
-    updateData.hargaSatuan = newTotal / newQty;
+    if (shouldUpdateTotal && !formData.has("total")) {
+      updateData.total = newQty * newHargaSatuan;
+    } else if (shouldUpdateHargaSatuan && !formData.has("hargaSatuan") && newQty !== 0) {
+      updateData.hargaSatuan = newTotal / newQty;
+    }
   }
 
   if (Object.keys(updateData).length === 0) return;
@@ -264,8 +268,10 @@ export async function updateKebutuhanIklanStatus(formData: FormData) {
   const existing = await prisma.kebutuhan_iklan.findUnique({ where: { id: pengajuanId } });
   if (!existing) return;
 
+  const canEditAmount = existing.status === "PENDING";
+
   const updateData: Record<string, string | null | number> = {};
-  
+
   if (formData.has("status")) {
     const status = String(formData.get("status"));
     if (["PENDING", "APPROVED", "REJECTED"].includes(status)) {
@@ -284,37 +290,39 @@ export async function updateKebutuhanIklanStatus(formData: FormData) {
   let shouldUpdateTotal = false;
   let shouldUpdateHargaSatuan = false;
 
-  if (formData.has("qty")) {
-    const qty = parseInt(String(formData.get("qty")), 10);
-    if (!isNaN(qty)) {
-      newQty = qty;
-      updateData.qty = qty;
-      shouldUpdateTotal = true;
+  if (canEditAmount) {
+    if (formData.has("qty")) {
+      const qty = parseInt(String(formData.get("qty")), 10);
+      if (!isNaN(qty)) {
+        newQty = qty;
+        updateData.qty = qty;
+        shouldUpdateTotal = true;
+      }
     }
-  }
 
-  if (formData.has("hargaSatuan")) {
-    const hargaSatuan = parseFloat(String(formData.get("hargaSatuan")));
-    if (!isNaN(hargaSatuan)) {
-      newHargaSatuan = hargaSatuan;
-      updateData.hargaSatuan = hargaSatuan;
-      shouldUpdateTotal = true;
+    if (formData.has("hargaSatuan")) {
+      const hargaSatuan = parseFloat(String(formData.get("hargaSatuan")));
+      if (!isNaN(hargaSatuan)) {
+        newHargaSatuan = hargaSatuan;
+        updateData.hargaSatuan = hargaSatuan;
+        shouldUpdateTotal = true;
+      }
     }
-  }
 
-  if (formData.has("total")) {
-    const total = parseFloat(String(formData.get("total")));
-    if (!isNaN(total)) {
-      newTotal = total;
-      updateData.total = total;
-      shouldUpdateHargaSatuan = true;
+    if (formData.has("total")) {
+      const total = parseFloat(String(formData.get("total")));
+      if (!isNaN(total)) {
+        newTotal = total;
+        updateData.total = total;
+        shouldUpdateHargaSatuan = true;
+      }
     }
-  }
 
-  if (shouldUpdateTotal && !formData.has("total")) {
-    updateData.total = newQty * newHargaSatuan;
-  } else if (shouldUpdateHargaSatuan && !formData.has("hargaSatuan") && newQty !== 0) {
-    updateData.hargaSatuan = newTotal / newQty;
+    if (shouldUpdateTotal && !formData.has("total")) {
+      updateData.total = newQty * newHargaSatuan;
+    } else if (shouldUpdateHargaSatuan && !formData.has("hargaSatuan") && newQty !== 0) {
+      updateData.hargaSatuan = newTotal / newQty;
+    }
   }
 
   if (Object.keys(updateData).length === 0) return;
@@ -496,6 +504,25 @@ export async function updateTotalPlafon(formData: FormData) {
   await prisma.plafon_iklan.update({
     where: { id: plafonId },
     data: { totalPlafon }
+  });
+
+  revalidatePath("/dashboard/iklan");
+}
+
+export async function updateTotalPengajuanRab(formData: FormData) {
+  await requireAdminPermission(DASHBOARD_PERMISSIONS.IKLAN);
+
+  const plafonId = String(formData.get("plafonId") ?? "");
+  const totalStr = String(formData.get("totalPengajuanRab") ?? "");
+  const total = parseFloat(totalStr);
+
+  if (!plafonId || isNaN(total) || total < 0) {
+    throw new Error("Plafon ID dan total Pengajuan RAB valid wajib diisi.");
+  }
+
+  await prisma.plafon_iklan.update({
+    where: { id: plafonId },
+    data: { totalPengajuanRabOverride: total }
   });
 
   revalidatePath("/dashboard/iklan");

@@ -15,6 +15,7 @@ import {
   Menu,
   X,
   Sparkles,
+  BarChart3,
 } from "lucide-react";
 
 type NavItem = {
@@ -41,6 +42,7 @@ const NAV_ICONS: Record<string, typeof LayoutDashboard> = {
   "/dashboard/semua": Database,
   "/dashboard/galeri": Images,
   "/dashboard/setting": Settings,
+  "/pengajuan/realisasi": BarChart3,
 };
 
 function getNavIcon(href: string) {

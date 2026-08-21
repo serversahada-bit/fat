@@ -73,6 +73,8 @@ model user {
   semua_pengajuan    semua_pengajuan[]
   pinjamanKeluar     peminjaman_kuota_iklan[] @relation("PeminjamKuota")
   pinjamanMasuk      peminjaman_kuota_iklan[] @relation("PemberiPinjaman")
+  realisasi_manual   realisasi_manual[]
+  catatan_realisasi_pribadi catatan_realisasi_pribadi[]
 }
 
 model pengajuan {
@@ -235,12 +237,13 @@ model master_canvas {
 }
 
 model plafon_iklan {
-  id          String   @id @default(cuid())
-  bulan       String   @unique
-  totalPlafon Float    @default(0)
-  status      String   @default("DRAFT")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                        String   @id @default(cuid())
+  bulan                     String   @unique
+  totalPlafon               Float    @default(0)
+  totalPengajuanRabOverride Float?
+  status                    String   @default("DRAFT")
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
 
   kebutuhan_iklan kebutuhan_iklan[]
 }
@@ -267,4 +270,42 @@ model peminjaman_kuota_iklan {
 
   @@index([peminjamId])
   @@index([pemberiPinjamanId])
+}
+
+model realisasi_manual {
+  id         String   @id @default(cuid())
+  userId     String
+  sourceType String
+  sourceId   String
+  nominal    Float
+  keterangan String   @db.Text
+  tanggal    DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user       user     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([sourceType, sourceId])
+}
+
+model catatan_realisasi_pribadi {
+  id          String   @id @default(cuid())
+  userId      String
+  divisi      String?
+  tipeBiaya   String?
+  uraian      String?
+  qty         Float?
+  satuan      String?
+  hargaSatuan Float?
+  total       Float?
+  realisasi   Float?
+  catatan     String?  @db.Text
+  urutan      Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        user     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
