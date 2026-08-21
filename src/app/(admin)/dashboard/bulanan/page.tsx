@@ -1,10 +1,9 @@
 export const dynamic = "force-dynamic";
 
 import { AppShell } from "@/components/AppShell";
-import { ApprovalDropdown } from "@/components/ApprovalDropdown";
-import { ApprovalNote } from "@/components/ApprovalNote";
-import { EditableAmount } from "@/components/EditableAmount";
+import { BulananTable } from "@/components/BulananTable";
 import { ExportPDFButton } from "@/components/ExportPDFButton";
+import { ImportKebutuhanBulananButton } from "@/components/ImportKebutuhanBulananButton";
 import { DASHBOARD_PERMISSIONS, requireAdminPermission } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getVisibleDashboardNavItems } from "@/lib/permissions";
@@ -30,22 +29,6 @@ type PengajuanBulanan = {
   createdAt: Date;
   updatedAt: Date;
 };
-
-function formatCurrency(amount: number) {
-  return new Intl.NumberFormat("id-ID", {
-    style: "currency",
-    currency: "IDR",
-    minimumFractionDigits: 0,
-  }).format(amount);
-}
-
-function formatDate(date: Date) {
-  return new Intl.DateTimeFormat("id-ID", {
-    timeZone: "Asia/Jakarta",
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(date);
-}
 
 export default async function ApprovalBulananPage({
   searchParams,
@@ -109,7 +92,10 @@ export default async function ApprovalBulananPage({
               ))}
             </div>
 
-            <ExportPDFButton data={daftarPengajuan} title={reportTitle} kategori={currentTab} />
+            <div className="flex items-center gap-3">
+              <ImportKebutuhanBulananButton />
+              <ExportPDFButton data={daftarPengajuan} title={reportTitle} kategori={currentTab} />
+            </div>
           </div>
 
           {daftarPengajuan.length === 0 ? (
@@ -117,77 +103,7 @@ export default async function ApprovalBulananPage({
               Belum ada data pengajuan bulanan di kategori ini.
             </div>
           ) : (
-            <div className="custom-scrollbar overflow-x-auto rounded-xl border border-slate-200">
-              <table className="min-w-[1200px] w-full border-collapse whitespace-nowrap text-left">
-                <thead className="gradient-brand text-xs uppercase tracking-wider text-white">
-                  <tr>
-                    <th className="px-4 py-4 text-center font-semibold">STATUS</th>
-                    <th className="px-4 py-4 text-center font-semibold">KATEGORI</th>
-                    <th className="px-4 py-4 text-center font-semibold">DIVISI</th>
-                    <th className="px-4 py-4 text-center font-semibold">PIC</th>
-                    <th className="px-4 py-4 font-semibold">RINCIAN</th>
-                    <th className="px-4 py-4 text-center font-semibold">QTY</th>
-                    <th className="px-4 py-4 text-right font-semibold">HARGA</th>
-                    <th className="px-4 py-4 text-right font-semibold">TOTAL</th>
-                    <th className="px-4 py-4 text-center font-semibold">TANGGAL</th>
-                    <th className="min-w-[250px] px-4 py-4 text-left font-semibold">CATATAN</th>
-                    <th className="min-w-[150px] px-4 py-4 text-center font-semibold">STATUS APPROVAL</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 text-sm">
-                  {daftarPengajuan.map((item) => (
-                    <tr key={item.id} className="transition-colors hover:bg-slate-50">
-                      <td className="px-4 py-4 text-center">
-                        <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold ${
-                          item.status === "PENDING"
-                            ? "bg-amber-100 text-amber-600"
-                            : item.status === "APPROVED"
-                              ? "bg-emerald-100 text-emerald-600"
-                              : "bg-red-100 text-red-600"
-                        }`}>
-                          {item.status}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4 text-center">
-                        <span className="rounded-md bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
-                          {item.kategori || "OPS RT"}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4 text-center text-slate-600">{item.divisi}</td>
-                      <td className="px-4 py-4 text-center text-slate-600">{item.pic}</td>
-                      <td className="min-w-[200px] whitespace-normal px-4 py-4">
-                        <div className="font-semibold text-slate-900">{item.rincian}</div>
-                        <div className="mt-0.5 text-xs text-slate-500">{item.bulan}</div>
-                      </td>
-                      <td className="px-4 py-4 text-center font-medium text-slate-700">
-                        <div className="flex items-center justify-center gap-1">
-                          <EditableAmount pengajuanId={item.id} initialValue={item.qty} field="qty" type="bulanan" isEditable={item.status === "PENDING"} /> {item.satuan}
-                        </div>
-                      </td>
-                      <td className="px-4 py-4 text-right text-slate-600">
-                        <div className="flex justify-end">
-                          <EditableAmount pengajuanId={item.id} initialValue={item.hargaSatuan} field="hargaSatuan" type="bulanan" isEditable={item.status === "PENDING"} />
-                        </div>
-                      </td>
-                      <td className="px-4 py-4 text-right font-bold text-slate-900">{formatCurrency(item.total)}</td>
-                      <td className="px-4 py-4 text-center text-xs text-slate-500">{formatDate(item.createdAt)}</td>
-                      <td className="min-w-[250px] px-4 py-4 text-left">
-                        {item.catatanTambahan && (
-                          <div className="mb-3 rounded-lg border border-slate-100 bg-slate-50 p-2 text-xs">
-                            <span className="font-semibold text-slate-700">Karyawan:</span>
-                            <p className="mt-0.5 whitespace-pre-wrap text-slate-600">{item.catatanTambahan}</p>
-                          </div>
-                        )}
-                        <ApprovalNote pengajuanId={item.id} initialCatatan={item.catatanAdmin} />
-                      </td>
-                      <td className="px-4 py-4 text-center">
-                        <ApprovalDropdown pengajuanId={item.id} initialStatus={item.status} />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <BulananTable items={daftarPengajuan} />
           )}
         </section>
       </div>

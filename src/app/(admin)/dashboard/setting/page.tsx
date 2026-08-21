@@ -11,6 +11,7 @@ import { SettingNamaTab } from "@/components/SettingNamaTab";
 import { SettingCanvasTab } from "@/components/SettingCanvasTab";
 import { SettingResetTab } from "@/components/SettingResetTab";
 import { SettingFinanceScheduleTab } from "@/components/SettingFinanceScheduleTab";
+import { PasswordInput } from "@/components/PasswordInput";
 import { Users, User, Landmark, Receipt, PenTool, Database, CalendarClock } from "lucide-react";
 import {
   EMPLOYEE_PERMISSION_OPTIONS,
@@ -154,7 +155,7 @@ export default async function KelolaPenggunaPage({
 
                     <div className="flex flex-col gap-2">
                       <label htmlFor="password" className="text-sm font-semibold text-slate-700">Password</label>
-                      <input id="password" name="password" type="password" placeholder="Minimal 6 karakter" required minLength={6} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20" />
+                      <PasswordInput id="password" name="password" placeholder="Minimal 6 karakter" required minLength={6} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20" />
                     </div>
                   </div>
 
@@ -283,7 +284,7 @@ export default async function KelolaPenggunaPage({
 
                     <div className="flex flex-col gap-2">
                       <label htmlFor="edit-password" className="text-sm font-semibold text-slate-700">Password Baru</label>
-                      <input id="edit-password" name="password" type="password" placeholder="Kosongkan jika tidak diubah" minLength={6} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20" />
+                      <PasswordInput id="edit-password" name="password" placeholder="Kosongkan jika tidak diubah" minLength={6} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20" />
                     </div>
                   </div>
 

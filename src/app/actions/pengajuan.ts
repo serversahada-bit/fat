@@ -5,6 +5,35 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { DASHBOARD_PERMISSIONS, requireAdminPermission, requireRole } from "@/lib/auth";
 
+export async function deleteKebutuhanBulananBulk(formData: FormData) {
+  await requireAdminPermission(DASHBOARD_PERMISSIONS.BULANAN);
+
+  const ids = formData.getAll("ids").map((id) => String(id)).filter(Boolean);
+  if (ids.length === 0) return;
+
+  await prisma.kebutuhan_bulanan.deleteMany({ where: { id: { in: ids } } });
+
+  revalidatePath("/dashboard/bulanan");
+  revalidatePath("/pengajuan/bulanan");
+}
+
+export async function updateKebutuhanBulananStatusBulk(formData: FormData) {
+  await requireAdminPermission(DASHBOARD_PERMISSIONS.BULANAN);
+
+  const ids = formData.getAll("ids").map((id) => String(id)).filter(Boolean);
+  const status = String(formData.get("status") ?? "");
+
+  if (ids.length === 0 || !["PENDING", "APPROVED", "REJECTED"].includes(status)) return;
+
+  await prisma.kebutuhan_bulanan.updateMany({
+    where: { id: { in: ids } },
+    data: { status: status as "PENDING" | "APPROVED" | "REJECTED" },
+  });
+
+  revalidatePath("/dashboard/bulanan");
+  revalidatePath("/pengajuan/bulanan");
+}
+
 export async function createPengajuan(formData: FormData) {
   const session = await requireRole("KARYAWAN");
 
