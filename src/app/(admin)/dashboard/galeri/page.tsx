@@ -11,7 +11,7 @@ const IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".sv
 
 function formatDate(date: Date | null | undefined) {
   if (!date) return null;
-  return new Intl.DateTimeFormat("id-ID", { dateStyle: "medium" }).format(date);
+  return new Intl.DateTimeFormat("id-ID", { timeZone: "Asia/Jakarta", dateStyle: "medium" }).format(date);
 }
 
 function formatDateKey(date: Date | null | undefined) {

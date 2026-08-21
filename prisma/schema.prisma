@@ -197,9 +197,22 @@ model semua_pengajuan {
   createdAt               DateTime        @default(now())
   updatedAt               DateTime        @updatedAt
   user                    user            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  biaya_item              biaya_item[]
 
   @@index([status])
   @@index([userId])
+}
+
+model biaya_item {
+  id                String          @id @default(cuid())
+  semuaPengajuanId  String
+  keterangan        String          @db.Text
+  nominal           Float
+  createdAt         DateTime        @default(now())
+
+  semuaPengajuan    semua_pengajuan @relation(fields: [semuaPengajuanId], references: [id], onDelete: Cascade)
+
+  @@index([semuaPengajuanId])
 }
 
 model master_bank {

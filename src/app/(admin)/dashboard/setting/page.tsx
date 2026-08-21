@@ -36,6 +36,7 @@ type UserListItem = {
 
 function formatDate(date: Date) {
   return new Intl.DateTimeFormat("id-ID", {
+    timeZone: "Asia/Jakarta",
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);

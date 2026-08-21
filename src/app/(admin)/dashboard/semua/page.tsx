@@ -78,6 +78,7 @@ function formatCurrency(amount: number | null | undefined) {
 function formatDate(date: Date | null | undefined) {
   if (!date) return "-";
   return new Intl.DateTimeFormat("id-ID", {
+    timeZone: "Asia/Jakarta",
     dateStyle: "medium",
   }).format(date);
 }
@@ -85,6 +86,7 @@ function formatDate(date: Date | null | undefined) {
 function formatDateTime(date: Date | null | undefined) {
   if (!date) return "-";
   return new Intl.DateTimeFormat("id-ID", {
+    timeZone: "Asia/Jakarta",
     dateStyle: "medium",
     timeStyle: "medium",
   }).format(date);
