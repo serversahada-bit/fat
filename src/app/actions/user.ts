@@ -134,3 +134,18 @@ export async function deleteUser(formData: FormData) {
   revalidatePath("/dashboard/setting");
   redirect("/dashboard/setting");
 }
+
+export async function deleteUsersBulk(formData: FormData) {
+  const session = await requireSuperAdminPermission(DASHBOARD_PERMISSIONS.USERS);
+
+  const ids = formData
+    .getAll("ids")
+    .map((id) => String(id))
+    .filter((id) => id && id !== session.user.id);
+
+  if (ids.length === 0) return;
+
+  await prisma.user.deleteMany({ where: { id: { in: ids } } });
+
+  revalidatePath("/dashboard/setting");
+}

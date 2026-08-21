@@ -12,6 +12,7 @@ import { SettingCanvasTab } from "@/components/SettingCanvasTab";
 import { SettingResetTab } from "@/components/SettingResetTab";
 import { SettingFinanceScheduleTab } from "@/components/SettingFinanceScheduleTab";
 import { PasswordInput } from "@/components/PasswordInput";
+import { UserTable } from "@/components/UserTable";
 import { Users, User, Landmark, Receipt, PenTool, Database, CalendarClock } from "lucide-react";
 import {
   EMPLOYEE_PERMISSION_OPTIONS,
@@ -21,7 +22,6 @@ import {
   getPermissionModeFromStoredValue,
   getVisibleDashboardNavItems,
   parsePermissionString,
-  summarizePermissionAccess,
 } from "@/lib/permissions";
 
 type UserListItem = {
@@ -34,14 +34,6 @@ type UserListItem = {
   permissions: string | null;
   createdAt: Date;
 };
-
-function formatDate(date: Date) {
-  return new Intl.DateTimeFormat("id-ID", {
-    timeZone: "Asia/Jakarta",
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(date);
-}
 
 export default async function KelolaPenggunaPage({
   searchParams,
@@ -420,80 +412,7 @@ export default async function KelolaPenggunaPage({
             </Link>
           </div>
 
-          {daftarPengguna.length === 0 ? (
-            <div className="py-12 text-center text-slate-500">
-              Belum ada user yang terdaftar.
-            </div>
-          ) : (
-            <div className="custom-scrollbar overflow-x-auto rounded-xl border border-slate-200">
-              <table className="min-w-[800px] w-full border-collapse whitespace-nowrap text-left text-sm">
-                <thead className="gradient-brand text-xs uppercase tracking-wider text-white">
-                  <tr>
-                    <th className="px-4 py-4 font-semibold">PENGGUNA</th>
-                    <th className="px-4 py-4 text-center font-semibold">DIVISI</th>
-                    <th className="px-4 py-4 font-semibold">ROLE & AKSES</th>
-                    <th className="px-4 py-4 font-semibold">DIBUAT TANGGAL</th>
-                    <th className="px-4 py-4 text-center font-semibold">AKSI</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {daftarPengguna.map((user) => {
-                    const permissions = parsePermissionString(user.permissions);
-                    const permissionMode = getPermissionModeFromStoredValue(user.role, user.permissions);
-                    const accessSummary = summarizePermissionAccess(user.role, permissionMode, permissions);
-                    const isCurrentUser = user.id === session.user.id;
-                    const roleBadgeClass = user.role === "SUPER_ADMIN"
-                      ? "border border-amber-100 bg-amber-50 text-amber-700"
-                      : user.role === "ADMIN"
-                        ? "border border-purple-100 bg-purple-50 text-purple-700"
-                        : "border border-slate-200 bg-slate-50 text-slate-600";
-
-                    return (
-                      <tr key={user.id} className="transition-colors hover:bg-slate-50">
-                        <td className="px-4 py-4">
-                          <div className="font-bold text-slate-900">{user.name || "Tanpa Nama"}</div>
-                          <div className="mt-0.5 text-xs text-slate-500">@{user.username || "-"} &bull; {user.email || "Tanpa Email"}</div>
-                        </td>
-                        <td className="px-4 py-4 text-center text-slate-600">{user.divisi || "-"}</td>
-                        <td className="min-w-[200px] px-4 py-4 whitespace-normal">
-                          <div className="mb-1.5 flex flex-wrap items-center gap-2">
-                            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold ${roleBadgeClass}`}>
-                              {user.role}
-                            </span>
-                            {permissionMode === "all" && (
-                              <span className="inline-flex items-center rounded-full border border-emerald-100 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
-                                {user.role === "SUPER_ADMIN" ? "Semua Menu Super Admin" : user.role === "ADMIN" ? "Semua Menu Admin" : "Semua Menu Karyawan"}
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-xs text-slate-500 line-clamp-2" title={accessSummary}>
-                            {accessSummary}
-                          </div>
-                        </td>
-                        <td className="px-4 py-4 text-xs text-slate-500">{formatDate(user.createdAt)}</td>
-                        <td className="px-4 py-4 text-center">
-                          <div className="flex items-center justify-center gap-2">
-                            <Link href={`/dashboard/setting?tab=user&edit=${user.id}`} className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-slate-800">
-                              Edit
-                            </Link>
-                            {isCurrentUser ? (
-                              <button type="button" disabled className="cursor-not-allowed rounded-lg bg-red-100 px-3 py-1.5 text-xs font-semibold text-red-400">
-                                Anda
-                              </button>
-                            ) : (
-                              <Link href={`/dashboard/setting?tab=user&delete=${user.id}`} className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-red-700">
-                                Hapus
-                              </Link>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
+          <UserTable users={daftarPengguna} currentUserId={session.user.id} />
         </section>
           </>
         )}

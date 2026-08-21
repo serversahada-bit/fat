@@ -373,20 +373,40 @@ export async function updateKebutuhanBulananEmployee(formData: FormData) {
 
   const existing = await prisma.kebutuhan_bulanan.findUnique({ where: { id: pengajuanId } });
   if (!existing || existing.userId !== session.user.id) return;
-  
+
   if (existing.status !== "PENDING") {
     throw new Error("Hanya pengajuan dengan status PENDING yang dapat diubah.");
   }
 
-  const updateData: Record<string, number> = {};
-  
+  const updateData: Record<string, string | number | null> = {};
+
+  if (formData.has("kategori")) {
+    const kategori = String(formData.get("kategori")).trim();
+    if (kategori) updateData.kategori = kategori;
+  }
+
+  if (formData.has("rincian")) {
+    const rincian = String(formData.get("rincian")).trim();
+    if (rincian) updateData.rincian = rincian;
+  }
+
+  if (formData.has("satuan")) {
+    const satuan = String(formData.get("satuan")).trim();
+    if (satuan) updateData.satuan = satuan;
+  }
+
+  if (formData.has("catatanTambahan")) {
+    const catatanTambahan = String(formData.get("catatanTambahan")).trim();
+    updateData.catatanTambahan = catatanTambahan || null;
+  }
+
   let newQty = existing.qty;
   let newHargaSatuan = existing.hargaSatuan;
   let shouldUpdateTotal = false;
 
   if (formData.has("qty")) {
     const qty = parseInt(String(formData.get("qty")), 10);
-    if (!isNaN(qty)) {
+    if (!isNaN(qty) && qty > 0) {
       newQty = qty;
       updateData.qty = qty;
       shouldUpdateTotal = true;
@@ -395,7 +415,7 @@ export async function updateKebutuhanBulananEmployee(formData: FormData) {
 
   if (formData.has("hargaSatuan")) {
     const hargaSatuan = parseFloat(String(formData.get("hargaSatuan")));
-    if (!isNaN(hargaSatuan)) {
+    if (!isNaN(hargaSatuan) && hargaSatuan >= 0) {
       newHargaSatuan = hargaSatuan;
       updateData.hargaSatuan = hargaSatuan;
       shouldUpdateTotal = true;
@@ -411,6 +431,19 @@ export async function updateKebutuhanBulananEmployee(formData: FormData) {
   await prisma.kebutuhan_bulanan.update({
     where: { id: pengajuanId },
     data: updateData,
+  });
+
+  revalidatePath("/pengajuan/bulanan");
+}
+
+export async function deleteKebutuhanBulananEmployeeBulk(formData: FormData) {
+  const session = await requireRole("KARYAWAN");
+
+  const ids = formData.getAll("ids").map((id) => String(id)).filter(Boolean);
+  if (ids.length === 0) return;
+
+  await prisma.kebutuhan_bulanan.deleteMany({
+    where: { id: { in: ids }, userId: session.user.id, status: "PENDING" },
   });
 
   revalidatePath("/pengajuan/bulanan");
