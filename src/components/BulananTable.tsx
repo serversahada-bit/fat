@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
-import { Trash2, Check, X as XIcon, RotateCcw } from "lucide-react";
+import { Fragment, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { Trash2, Check, X as XIcon, RotateCcw, ChevronDown, ChevronRight } from "lucide-react";
 import { ApprovalDropdown } from "@/components/ApprovalDropdown";
 import { ApprovalNote } from "@/components/ApprovalNote";
 import { EditableAmount } from "@/components/EditableAmount";
@@ -28,6 +28,16 @@ type PengajuanBulanan = {
   updatedAt: Date;
 };
 
+type Group = {
+  key: string;
+  bulan: string;
+  kategori: string;
+  divisi: string;
+  pic: string;
+  items: PengajuanBulanan[];
+  totalBudget: number;
+};
+
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("id-ID", {
     style: "currency",
@@ -44,10 +54,38 @@ function formatDate(date: Date) {
   }).format(date);
 }
 
+function groupItems(items: PengajuanBulanan[]): Group[] {
+  const map = new Map<string, Group>();
+
+  for (const item of items) {
+    const key = `${item.bulan}|${item.kategori}|${item.divisi}|${item.pic}`;
+    const existing = map.get(key);
+    if (existing) {
+      existing.items.push(item);
+      existing.totalBudget += item.total;
+    } else {
+      map.set(key, {
+        key,
+        bulan: item.bulan,
+        kategori: item.kategori,
+        divisi: item.divisi,
+        pic: item.pic,
+        items: [item],
+        totalBudget: item.total,
+      });
+    }
+  }
+
+  return Array.from(map.values());
+}
+
 export function BulananTable({ items }: { items: PengajuanBulanan[] }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [isPending, startTransition] = useTransition();
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const headerCheckboxRef = useRef<HTMLInputElement>(null);
+
+  const groups = useMemo(() => groupItems(items), [items]);
 
   useEffect(() => {
     setSelected((prev) => {
@@ -82,6 +120,33 @@ export function BulananTable({ items }: { items: PengajuanBulanan[] }) {
     });
   }
 
+  function toggleGroup(group: Group) {
+    const groupIds = group.items.map((item) => item.id);
+    const allGroupSelected = groupIds.every((id) => selected.has(id));
+
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (allGroupSelected) {
+        groupIds.forEach((id) => next.delete(id));
+      } else {
+        groupIds.forEach((id) => next.add(id));
+      }
+      return next;
+    });
+  }
+
+  function toggleExpanded(key: string) {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  }
+
   function handleDeleteSelected() {
     if (selected.size === 0) return;
     if (!confirm(`Yakin mau hapus ${selected.size} pengajuan yang dipilih? Tindakan ini tidak bisa dibatalkan.`)) {
@@ -108,6 +173,71 @@ export function BulananTable({ items }: { items: PengajuanBulanan[] }) {
       await updateKebutuhanBulananStatusBulk(formData);
       setSelected(new Set());
     });
+  }
+
+  function renderItemRow(item: PengajuanBulanan, indented: boolean) {
+    return (
+      <tr
+        key={item.id}
+        className={`transition-colors hover:bg-slate-50 ${selected.has(item.id) ? "bg-purple-50/60" : ""}`}
+      >
+        <td className="px-4 py-4 text-center">
+          <input
+            type="checkbox"
+            checked={selected.has(item.id)}
+            onChange={() => toggleOne(item.id)}
+            className="h-4 w-4 cursor-pointer rounded border-slate-300 accent-purple-600"
+            aria-label={`Pilih ${item.rincian}`}
+          />
+        </td>
+        <td className="px-4 py-4 text-center">
+          <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold ${
+            item.status === "PENDING"
+              ? "bg-amber-100 text-amber-600"
+              : item.status === "APPROVED"
+                ? "bg-emerald-100 text-emerald-600"
+                : "bg-red-100 text-red-600"
+          }`}>
+            {item.status}
+          </span>
+        </td>
+        <td className="px-4 py-4 text-center">
+          <span className="rounded-md bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+            {item.kategori || "OPS RT"}
+          </span>
+        </td>
+        <td className="px-4 py-4 text-center text-slate-600">{item.divisi}</td>
+        <td className="px-4 py-4 text-center text-slate-600">{item.pic}</td>
+        <td className={`min-w-[200px] whitespace-normal px-4 py-4 ${indented ? "pl-10" : ""}`}>
+          <div className="font-semibold text-slate-900">{item.rincian}</div>
+          <div className="mt-0.5 text-xs text-slate-500">{item.bulan}</div>
+        </td>
+        <td className="px-4 py-4 text-center font-medium text-slate-700">
+          <div className="flex items-center justify-center gap-1">
+            <EditableAmount pengajuanId={item.id} initialValue={item.qty} field="qty" type="bulanan" isEditable={item.status === "PENDING"} /> {item.satuan}
+          </div>
+        </td>
+        <td className="px-4 py-4 text-right text-slate-600">
+          <div className="flex justify-end">
+            <EditableAmount pengajuanId={item.id} initialValue={item.hargaSatuan} field="hargaSatuan" type="bulanan" isEditable={item.status === "PENDING"} />
+          </div>
+        </td>
+        <td className="px-4 py-4 text-right font-bold text-slate-900">{formatCurrency(item.total)}</td>
+        <td className="px-4 py-4 text-center text-xs text-slate-500">{formatDate(item.createdAt)}</td>
+        <td className="min-w-[250px] px-4 py-4 text-left">
+          {item.catatanTambahan && (
+            <div className="mb-3 rounded-lg border border-slate-100 bg-slate-50 p-2 text-xs">
+              <span className="font-semibold text-slate-700">Karyawan:</span>
+              <p className="mt-0.5 whitespace-pre-wrap text-slate-600">{item.catatanTambahan}</p>
+            </div>
+          )}
+          <ApprovalNote pengajuanId={item.id} initialCatatan={item.catatanAdmin} />
+        </td>
+        <td className="px-4 py-4 text-center">
+          <ApprovalDropdown pengajuanId={item.id} initialStatus={item.status} />
+        </td>
+      </tr>
+    );
   }
 
   return (
@@ -184,68 +314,75 @@ export function BulananTable({ items }: { items: PengajuanBulanan[] }) {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 text-sm">
-            {items.map((item) => (
-              <tr
-                key={item.id}
-                className={`transition-colors hover:bg-slate-50 ${selected.has(item.id) ? "bg-purple-50/60" : ""}`}
-              >
-                <td className="px-4 py-4 text-center">
-                  <input
-                    type="checkbox"
-                    checked={selected.has(item.id)}
-                    onChange={() => toggleOne(item.id)}
-                    className="h-4 w-4 cursor-pointer rounded border-slate-300 accent-purple-600"
-                    aria-label={`Pilih ${item.rincian}`}
-                  />
-                </td>
-                <td className="px-4 py-4 text-center">
-                  <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold ${
-                    item.status === "PENDING"
-                      ? "bg-amber-100 text-amber-600"
-                      : item.status === "APPROVED"
-                        ? "bg-emerald-100 text-emerald-600"
-                        : "bg-red-100 text-red-600"
-                  }`}>
-                    {item.status}
-                  </span>
-                </td>
-                <td className="px-4 py-4 text-center">
-                  <span className="rounded-md bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
-                    {item.kategori || "OPS RT"}
-                  </span>
-                </td>
-                <td className="px-4 py-4 text-center text-slate-600">{item.divisi}</td>
-                <td className="px-4 py-4 text-center text-slate-600">{item.pic}</td>
-                <td className="min-w-[200px] whitespace-normal px-4 py-4">
-                  <div className="font-semibold text-slate-900">{item.rincian}</div>
-                  <div className="mt-0.5 text-xs text-slate-500">{item.bulan}</div>
-                </td>
-                <td className="px-4 py-4 text-center font-medium text-slate-700">
-                  <div className="flex items-center justify-center gap-1">
-                    <EditableAmount pengajuanId={item.id} initialValue={item.qty} field="qty" type="bulanan" isEditable={item.status === "PENDING"} /> {item.satuan}
-                  </div>
-                </td>
-                <td className="px-4 py-4 text-right text-slate-600">
-                  <div className="flex justify-end">
-                    <EditableAmount pengajuanId={item.id} initialValue={item.hargaSatuan} field="hargaSatuan" type="bulanan" isEditable={item.status === "PENDING"} />
-                  </div>
-                </td>
-                <td className="px-4 py-4 text-right font-bold text-slate-900">{formatCurrency(item.total)}</td>
-                <td className="px-4 py-4 text-center text-xs text-slate-500">{formatDate(item.createdAt)}</td>
-                <td className="min-w-[250px] px-4 py-4 text-left">
-                  {item.catatanTambahan && (
-                    <div className="mb-3 rounded-lg border border-slate-100 bg-slate-50 p-2 text-xs">
-                      <span className="font-semibold text-slate-700">Karyawan:</span>
-                      <p className="mt-0.5 whitespace-pre-wrap text-slate-600">{item.catatanTambahan}</p>
-                    </div>
-                  )}
-                  <ApprovalNote pengajuanId={item.id} initialCatatan={item.catatanAdmin} />
-                </td>
-                <td className="px-4 py-4 text-center">
-                  <ApprovalDropdown pengajuanId={item.id} initialStatus={item.status} />
-                </td>
-              </tr>
-            ))}
+            {groups.map((group) => {
+              if (group.items.length === 1) {
+                return renderItemRow(group.items[0], false);
+              }
+
+              const isExpanded = expandedGroups.has(group.key);
+              const groupIds = group.items.map((item) => item.id);
+              const groupSelectedCount = groupIds.filter((id) => selected.has(id)).length;
+              const isGroupAllSelected = groupSelectedCount === groupIds.length;
+              const isGroupSomeSelected = groupSelectedCount > 0 && !isGroupAllSelected;
+              const statusCounts = group.items.reduce<Record<PengajuanStatus, number>>((acc, item) => {
+                acc[item.status] = (acc[item.status] ?? 0) + 1;
+                return acc;
+              }, { PENDING: 0, APPROVED: 0, REJECTED: 0 });
+
+              return (
+                <Fragment key={group.key}>
+                  <tr
+                    onClick={() => toggleExpanded(group.key)}
+                    className={`cursor-pointer bg-slate-50/80 transition-colors hover:bg-slate-100 ${isGroupSomeSelected || isGroupAllSelected ? "bg-purple-50/60" : ""}`}
+                  >
+                    <td className="px-4 py-4 text-center" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={isGroupAllSelected}
+                        ref={(el) => { if (el) el.indeterminate = isGroupSomeSelected; }}
+                        onChange={() => toggleGroup(group)}
+                        className="h-4 w-4 cursor-pointer rounded border-slate-300 accent-purple-600"
+                        aria-label={`Pilih semua ${group.divisi}`}
+                      />
+                    </td>
+                    <td className="px-4 py-4 text-center">
+                      <div className="flex flex-wrap items-center justify-center gap-1">
+                        {statusCounts.PENDING > 0 && (
+                          <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-600">{statusCounts.PENDING} PENDING</span>
+                        )}
+                        {statusCounts.APPROVED > 0 && (
+                          <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-600">{statusCounts.APPROVED} APPROVED</span>
+                        )}
+                        {statusCounts.REJECTED > 0 && (
+                          <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-600">{statusCounts.REJECTED} REJECTED</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-4 text-center">
+                      <span className="rounded-md bg-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                        {group.kategori || "OPS RT"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4 text-center font-semibold text-slate-700">{group.divisi}</td>
+                    <td className="px-4 py-4 text-center font-semibold text-slate-700">{group.pic}</td>
+                    <td className="min-w-[200px] whitespace-normal px-4 py-4">
+                      <div className="flex items-center gap-2 font-semibold text-slate-900">
+                        {isExpanded ? <ChevronDown className="h-4 w-4 shrink-0" /> : <ChevronRight className="h-4 w-4 shrink-0" />}
+                        {group.items.length} item digabung
+                      </div>
+                      <div className="mt-0.5 pl-6 text-xs text-slate-500">{group.bulan}</div>
+                    </td>
+                    <td className="px-4 py-4 text-center text-slate-400">-</td>
+                    <td className="px-4 py-4 text-right text-slate-400">-</td>
+                    <td className="px-4 py-4 text-right font-bold text-slate-900">{formatCurrency(group.totalBudget)}</td>
+                    <td className="px-4 py-4 text-center text-xs text-slate-400">-</td>
+                    <td className="px-4 py-4 text-left text-xs text-slate-400">-</td>
+                    <td className="px-4 py-4 text-center text-xs text-slate-400">-</td>
+                  </tr>
+                  {isExpanded && group.items.map((item) => renderItemRow(item, true))}
+                </Fragment>
+              );
+            })}
           </tbody>
         </table>
       </div>

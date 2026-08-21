@@ -88,11 +88,13 @@ export default async function PengajuanBulananPage({
     }),
   ]);
 
-  const financeDataMap = new Map<string, { 
-    id: string; 
-    status: "PENDING" | "APPROVED" | "REJECTED"; 
-    isManagerApproved: boolean; 
-    tipePengajuan: string | null; 
+  const itemsById = new Map(daftarPengajuan.map((item) => [item.id, item]));
+
+  const financeDataMap = new Map<string, {
+    id: string;
+    status: "PENDING" | "APPROVED" | "REJECTED";
+    isManagerApproved: boolean;
+    tipePengajuan: string | null;
     invoice: string | null;
     totalRealisasi: number;
     hasPending: boolean;
@@ -100,28 +102,41 @@ export default async function PengajuanBulananPage({
 
   for (const submission of financeSubmissions) {
     if (!submission.score) continue;
-    
-    const amount = submission.status !== "REJECTED" 
+
+    // A single finance submission can cover multiple kebutuhan_bulanan items at once
+    // (combined/bulk "Ajukan Gabungan ke Finance"), stored as a comma-joined id list.
+    const linkedIds = submission.score.split(",").map((id) => id.trim()).filter(Boolean);
+    if (linkedIds.length === 0) continue;
+
+    const amount = submission.status !== "REJECTED"
       ? (submission.nominalRealisasi ?? submission.nominalTransaksi ?? 0)
       : 0;
 
-    const existing = financeDataMap.get(submission.score);
-    if (!existing) {
-      financeDataMap.set(submission.score, {
-        id: submission.id,
-        status: submission.status,
-        isManagerApproved: submission.verifiedManager === "APPROVE",
-        tipePengajuan: submission.tipePengajuan,
-        invoice: submission.invoice,
-        totalRealisasi: amount,
-        hasPending: submission.status === "PENDING" && submission.verifiedManager !== "APPROVE"
-      });
-    } else {
-      financeDataMap.set(submission.score, {
-        ...existing,
-        totalRealisasi: existing.totalRealisasi + amount,
-        hasPending: existing.hasPending || (submission.status === "PENDING" && submission.verifiedManager !== "APPROVE")
-      });
+    const totalWeight = linkedIds.reduce((sum, id) => sum + (itemsById.get(id)?.total ?? 0), 0);
+
+    for (const id of linkedIds) {
+      const item = itemsById.get(id);
+      const weight = totalWeight > 0 ? (item?.total ?? 0) / totalWeight : 1 / linkedIds.length;
+      const allocatedAmount = amount * weight;
+
+      const existing = financeDataMap.get(id);
+      if (!existing) {
+        financeDataMap.set(id, {
+          id: submission.id,
+          status: submission.status,
+          isManagerApproved: submission.verifiedManager === "APPROVE",
+          tipePengajuan: submission.tipePengajuan,
+          invoice: submission.invoice,
+          totalRealisasi: allocatedAmount,
+          hasPending: submission.status === "PENDING" && submission.verifiedManager !== "APPROVE"
+        });
+      } else {
+        financeDataMap.set(id, {
+          ...existing,
+          totalRealisasi: existing.totalRealisasi + allocatedAmount,
+          hasPending: existing.hasPending || (submission.status === "PENDING" && submission.verifiedManager !== "APPROVE")
+        });
+      }
     }
   }
 

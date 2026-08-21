@@ -2,10 +2,11 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2 } from "lucide-react";
+import { Trash2, Send } from "lucide-react";
 import { FinanceSubmissionLauncher } from "@/components/FinanceSubmissionLauncher";
 import { UploadInvoiceButton } from "@/components/UploadInvoiceButton";
 import { EditableAmount } from "@/components/EditableAmount";
+import { SemuaPengajuanForm } from "@/components/SemuaPengajuanForm";
 import { deleteKebutuhanBulananEmployeeBulk, updateKebutuhanBulananEmployee } from "@/app/actions/pengajuan";
 
 type PengajuanStatus = "PENDING" | "APPROVED" | "REJECTED";
@@ -73,9 +74,21 @@ export function PengajuanBulananTable({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [isPending, startTransition] = useTransition();
   const [editingRow, setEditingRow] = useState<Row | null>(null);
+  const [isBulkFinanceOpen, setIsBulkFinanceOpen] = useState(false);
   const headerCheckboxRef = useRef<HTMLInputElement>(null);
 
-  const selectableIds = rows.filter((row) => row.item.status === "PENDING").map((row) => row.item.id);
+  const selectableIds = rows
+    .filter((row) => row.item.status === "PENDING" || row.item.status === "APPROVED")
+    .map((row) => row.item.id);
+
+  const selectedRows = rows.filter((row) => selected.has(row.item.id));
+  const isPendingOnlySelection = selectedRows.length > 0 && selectedRows.every((row) => row.item.status === "PENDING");
+  const isApprovedOnlySelection = selectedRows.length > 0 && selectedRows.every((row) => row.item.status === "APPROVED");
+
+  const isScheduleOpen = financeSubmissionEnabled && !(financeSubmissionStartDate && today < financeSubmissionStartDate);
+  const allApprovedEligible = isApprovedOnlySelection && isScheduleOpen && selectedRows.every(
+    (row) => row.sisaBudget > 0 && !(row.financeData?.hasPending)
+  );
 
   useEffect(() => {
     setSelected((prev) => {
@@ -137,15 +150,41 @@ export function PengajuanBulananTable({
       {selected.size > 0 && (
         <div className="flex flex-col gap-3 rounded-xl border border-purple-200 bg-purple-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
           <span className="text-sm font-semibold text-purple-700">{selected.size} baris dipilih</span>
-          <button
-            type="button"
-            onClick={handleDeleteSelected}
-            disabled={isPending}
-            className="flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-            Hapus
-          </button>
+
+          {isPendingOnlySelection && (
+            <button
+              type="button"
+              onClick={handleDeleteSelected}
+              disabled={isPending}
+              className="flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Hapus
+            </button>
+          )}
+
+          {isApprovedOnlySelection && allApprovedEligible && (
+            <button
+              type="button"
+              onClick={() => setIsBulkFinanceOpen(true)}
+              className="flex items-center gap-1.5 rounded-lg bg-purple-600 px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-purple-700"
+            >
+              <Send className="h-3.5 w-3.5" />
+              Ajukan Gabungan ke Finance
+            </button>
+          )}
+
+          {isApprovedOnlySelection && !allApprovedEligible && (
+            <span className="text-xs font-medium text-amber-700">
+              Ada item yang belum bisa diajukan (budget habis / masih menunggu finance / belum waktunya).
+            </span>
+          )}
+
+          {!isPendingOnlySelection && !isApprovedOnlySelection && (
+            <span className="text-xs font-medium text-slate-500">
+              Pilih item dengan status yang sama: semua PENDING untuk hapus, atau semua APPROVED untuk ajukan gabungan ke finance.
+            </span>
+          )}
         </div>
       )}
 
@@ -181,13 +220,14 @@ export function PengajuanBulananTable({
           </thead>
           <tbody className="divide-y divide-slate-100 text-sm">
             {rows.map(({ item, financeData, totalRealisasi, sisaBudget }) => {
-              const isSelectable = item.status === "PENDING";
+              const isSelectable = item.status === "PENDING" || item.status === "APPROVED";
+              const isEditableByDoubleClick = item.status === "PENDING";
               return (
                 <tr
                   key={item.id}
                   onDoubleClick={() => handleRowDoubleClick({ item, financeData, totalRealisasi, sisaBudget })}
-                  title={isSelectable ? "Klik 2 kali untuk edit" : undefined}
-                  className={`transition-colors hover:bg-slate-50 ${isSelectable ? "cursor-pointer" : ""} ${selected.has(item.id) ? "bg-purple-50/60" : ""}`}
+                  title={isEditableByDoubleClick ? "Klik 2 kali untuk edit" : undefined}
+                  className={`transition-colors hover:bg-slate-50 ${isEditableByDoubleClick ? "cursor-pointer" : ""} ${selected.has(item.id) ? "bg-purple-50/60" : ""}`}
                 >
                   <td className="px-4 py-4 text-center" onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
                     {isSelectable && (
@@ -307,6 +347,82 @@ export function PengajuanBulananTable({
           onClose={() => setEditingRow(null)}
         />
       )}
+
+      {isBulkFinanceOpen && (
+        <BulkFinanceModal
+          rows={selectedRows}
+          today={today}
+          userEmail={userEmail}
+          userName={userName}
+          onClose={() => {
+            setIsBulkFinanceOpen(false);
+            setSelected(new Set());
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function BulkFinanceModal({
+  rows,
+  today,
+  userEmail,
+  userName,
+  onClose,
+}: {
+  rows: Row[];
+  today: string;
+  userEmail: string;
+  userName: string;
+  onClose: () => void;
+}) {
+  const sourceId = rows.map((row) => row.item.id).join(",");
+  const combinedNominal = rows.reduce((sum, row) => sum + (row.sisaBudget > 0 ? row.sisaBudget : row.item.total), 0);
+  const combinedKeterangan = `Gabungan ${rows.length} item: ${rows.map((row) => row.item.rincian).join(", ")}`;
+
+  return (
+    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm animate-fade-in sm:p-6">
+      <div className="relative flex max-h-[95vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:rounded-3xl">
+        <div className="border-b border-slate-100 bg-gradient-to-b from-purple-50/50 to-white p-6 md:px-8 md:py-6">
+          <div className="flex items-start justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-slate-900 md:text-2xl">Ajukan Gabungan ke Finance</h2>
+              <p className="mt-1 text-sm text-slate-500">
+                {rows.length} item akan diajukan sebagai satu pengajuan finance senilai {formatCurrency(combinedNominal)}.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-full bg-white p-2.5 text-slate-400 shadow-sm ring-1 ring-slate-900/5 transition-all hover:bg-slate-50 hover:text-slate-600"
+            >
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} /></svg>
+            </button>
+          </div>
+          <ul className="mt-4 flex flex-wrap gap-2">
+            {rows.map((row) => (
+              <li key={row.item.id} className="rounded-full border border-purple-200 bg-purple-50 px-3 py-1 text-xs font-semibold text-purple-700">
+                {row.item.rincian} &bull; {formatCurrency(row.sisaBudget > 0 ? row.sisaBudget : row.item.total)}
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="custom-scrollbar overflow-y-auto p-6 text-left md:p-8">
+          <SemuaPengajuanForm
+            defaultKeterangan={combinedKeterangan}
+            defaultNominal={String(combinedNominal)}
+            defaultTanggal={today}
+            inlineMode
+            onClose={onClose}
+            sourceId={sourceId}
+            sourceType="bulanan"
+            userEmail={userEmail}
+            userName={userName}
+          />
+        </div>
+      </div>
     </div>
   );
 }
