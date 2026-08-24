@@ -76,9 +76,13 @@ export function InlineEdit({ id, field, initialValue, type, options = [], placeh
       if (type === "number") {
         displayValue = new Intl.NumberFormat("id-ID").format(Number(value));
       } else if (type === "date" || type === "datetime-local") {
-        const dateObj = new Date(value);
+        // `value` holds an Asia/Jakarta wall-clock string with no timezone suffix
+        // (e.g. "2026-08-24T16:05"); append the Jakarta offset before parsing so it
+        // doesn't get reinterpreted using the viewer's own browser timezone.
+        const dateObj = new Date(type === "datetime-local" ? `${value}:00+07:00` : value);
         if (!isNaN(dateObj.getTime())) {
           displayValue = new Intl.DateTimeFormat("id-ID", {
+            timeZone: "Asia/Jakarta",
             dateStyle: "medium",
             timeStyle: type === "datetime-local" ? "medium" : undefined,
           }).format(dateObj);

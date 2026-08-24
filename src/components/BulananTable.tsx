@@ -36,6 +36,7 @@ type Group = {
   pic: string;
   items: PengajuanBulanan[];
   totalBudget: number;
+  latestCreatedAt: Date;
 };
 
 function formatCurrency(amount: number) {
@@ -50,7 +51,7 @@ function formatDate(date: Date) {
   return new Intl.DateTimeFormat("id-ID", {
     timeZone: "Asia/Jakarta",
     dateStyle: "medium",
-    timeStyle: "short",
+    timeStyle: "medium",
   }).format(date);
 }
 
@@ -63,6 +64,9 @@ function groupItems(items: PengajuanBulanan[]): Group[] {
     if (existing) {
       existing.items.push(item);
       existing.totalBudget += item.total;
+      if (item.createdAt > existing.latestCreatedAt) {
+        existing.latestCreatedAt = item.createdAt;
+      }
     } else {
       map.set(key, {
         key,
@@ -72,6 +76,7 @@ function groupItems(items: PengajuanBulanan[]): Group[] {
         pic: item.pic,
         items: [item],
         totalBudget: item.total,
+        latestCreatedAt: item.createdAt,
       });
     }
   }
@@ -375,7 +380,10 @@ export function BulananTable({ items }: { items: PengajuanBulanan[] }) {
                     <td className="px-4 py-4 text-center text-slate-400">-</td>
                     <td className="px-4 py-4 text-right text-slate-400">-</td>
                     <td className="px-4 py-4 text-right font-bold text-slate-900">{formatCurrency(group.totalBudget)}</td>
-                    <td className="px-4 py-4 text-center text-xs text-slate-400">-</td>
+                    <td className="px-4 py-4 text-center text-xs text-slate-500">
+                      <div>{formatDate(group.latestCreatedAt)}</div>
+                      <div className="text-slate-400">(terbaru)</div>
+                    </td>
                     <td className="px-4 py-4 text-left text-xs text-slate-400">-</td>
                     <td className="px-4 py-4 text-center text-xs text-slate-400">-</td>
                   </tr>

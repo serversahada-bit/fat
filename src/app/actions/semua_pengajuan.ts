@@ -244,7 +244,10 @@ export async function updateSemuaField(id: string, field: string, value: string 
       updateData["bankOut"] = (pengajuan.nominalTransaksi - taxAmount).toString();
     }
   } else if (field.startsWith("tanggal") || field.startsWith("timestamp")) {
-    updateData[field] = value ? new Date(value) : null;
+    // datetime-local values ("YYYY-MM-DDTHH:mm") have no timezone suffix, so the JS
+    // Date parser would otherwise read them as the server's own local time (UTC here)
+    // instead of the Asia/Jakarta wall-clock time the admin actually typed.
+    updateData[field] = value ? new Date(value.includes("T") ? `${value}:00+07:00` : value) : null;
   } else if (field.startsWith("nilai") || field.startsWith("nominal")) {
     updateData[field] = value ? parseFloat(value) : null;
   } else {

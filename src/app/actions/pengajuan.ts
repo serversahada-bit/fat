@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { DASHBOARD_PERMISSIONS, requireAdminPermission, requireRole } from "@/lib/auth";
+import { getBulanLabel } from "@/lib/bulan";
 
 export async function deleteKebutuhanBulananBulk(formData: FormData) {
   await requireAdminPermission(DASHBOARD_PERMISSIONS.BULANAN);
@@ -60,9 +61,8 @@ export async function createPengajuan(formData: FormData) {
 export async function createKebutuhanBulanan(formData: FormData) {
   const session = await requireRole("KARYAWAN");
 
-  const date = new Date();
-  const namaBulan = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
-  const bulan = `${namaBulan[date.getMonth()]} ${date.getFullYear()}`;
+  // Kebutuhan bulanan diajukan bulan ini untuk dipakai/dianggarkan bulan berikutnya.
+  const bulan = getBulanLabel(1);
 
   const dbUser = await prisma.user.findUnique({ where: { id: session.user.id } });
   const divisi = dbUser?.divisi || "Belum diatur";

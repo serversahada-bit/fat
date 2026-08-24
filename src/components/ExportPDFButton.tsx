@@ -302,6 +302,7 @@ const formatDate = (
   }
 
   return date.toLocaleDateString("id-ID", {
+    timeZone: "Asia/Jakarta",
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -548,9 +549,7 @@ const drawDocumentFooter = (
   doc.setTextColor(100, 116, 139);
 
   doc.text(
-    `Dicetak: ${new Date().toLocaleString(
-      "id-ID",
-    )}`,
+    `Dicetak: ${new Date().toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })}`,
     PDF_LAYOUT.marginLeft,
     pageHeight - 6,
   );
