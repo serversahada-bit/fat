@@ -18,6 +18,18 @@ export async function deleteKebutuhanBulananBulk(formData: FormData) {
   revalidatePath("/pengajuan/bulanan");
 }
 
+export async function deleteKebutuhanIklanBulk(formData: FormData) {
+  await requireAdminPermission(DASHBOARD_PERMISSIONS.IKLAN);
+
+  const ids = formData.getAll("ids").map((id) => String(id)).filter(Boolean);
+  if (ids.length === 0) return;
+
+  await prisma.kebutuhan_iklan.deleteMany({ where: { id: { in: ids } } });
+
+  revalidatePath("/dashboard/iklan");
+  revalidatePath("/pengajuan/iklan");
+}
+
 export async function updateKebutuhanBulananStatusBulk(formData: FormData) {
   await requireAdminPermission(DASHBOARD_PERMISSIONS.BULANAN);
 
@@ -447,6 +459,88 @@ export async function deleteKebutuhanBulananEmployeeBulk(formData: FormData) {
   });
 
   revalidatePath("/pengajuan/bulanan");
+}
+
+export async function updateKebutuhanIklanAdminDetail(formData: FormData) {
+  await requireAdminPermission(DASHBOARD_PERMISSIONS.IKLAN);
+
+  const pengajuanId = String(formData.get("pengajuanId") ?? "");
+  if (!pengajuanId) return;
+
+  const existing = await prisma.kebutuhan_iklan.findUnique({ where: { id: pengajuanId } });
+  if (!existing) return;
+
+  if (existing.status !== "PENDING") {
+    throw new Error("Hanya pengajuan dengan status PENDING yang dapat diubah.");
+  }
+
+  const updateData: Record<string, string | number | null> = {};
+
+  if (formData.has("platform")) {
+    const platform = String(formData.get("platform")).trim();
+    if (platform) updateData.platform = platform;
+  }
+
+  if (formData.has("divisi")) {
+    const divisi = String(formData.get("divisi")).trim();
+    if (divisi) updateData.divisi = divisi;
+  }
+
+  if (formData.has("pic")) {
+    const pic = String(formData.get("pic")).trim();
+    if (pic) updateData.pic = pic;
+  }
+
+  if (formData.has("rincian")) {
+    const rincian = String(formData.get("rincian")).trim();
+    if (rincian) updateData.rincian = rincian;
+  }
+
+  if (formData.has("satuan")) {
+    const satuan = String(formData.get("satuan")).trim();
+    if (satuan) updateData.satuan = satuan;
+  }
+
+  if (formData.has("catatanTambahan")) {
+    const catatanTambahan = String(formData.get("catatanTambahan")).trim();
+    updateData.catatanTambahan = catatanTambahan || null;
+  }
+
+  let newQty = existing.qty;
+  let newHargaSatuan = existing.hargaSatuan;
+  let shouldUpdateTotal = false;
+
+  if (formData.has("qty")) {
+    const qty = parseInt(String(formData.get("qty")), 10);
+    if (!isNaN(qty) && qty > 0) {
+      newQty = qty;
+      updateData.qty = qty;
+      shouldUpdateTotal = true;
+    }
+  }
+
+  if (formData.has("hargaSatuan")) {
+    const hargaSatuan = parseFloat(String(formData.get("hargaSatuan")));
+    if (!isNaN(hargaSatuan) && hargaSatuan >= 0) {
+      newHargaSatuan = hargaSatuan;
+      updateData.hargaSatuan = hargaSatuan;
+      shouldUpdateTotal = true;
+    }
+  }
+
+  if (shouldUpdateTotal) {
+    updateData.total = newQty * newHargaSatuan;
+  }
+
+  if (Object.keys(updateData).length === 0) return;
+
+  await prisma.kebutuhan_iklan.update({
+    where: { id: pengajuanId },
+    data: updateData,
+  });
+
+  revalidatePath("/dashboard/iklan");
+  revalidatePath("/pengajuan/iklan");
 }
 
 export async function updateKebutuhanIklanEmployee(formData: FormData) {
