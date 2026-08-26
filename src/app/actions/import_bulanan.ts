@@ -58,6 +58,7 @@ function parseIndonesianNumber(raw: string): number {
  * text parsing of "200.000"-style values is what caused totals to come out
  * 1000x too small when a value round-tripped through string formatting.
  */
+
 function readNumericCell(row: ExcelJS.Row, index: number): number {
   const value = row.getCell(index).value;
   if (value === null || value === undefined) return NaN;

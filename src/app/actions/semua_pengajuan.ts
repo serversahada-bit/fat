@@ -143,6 +143,20 @@ export async function createSemuaPengajuanInline(
   };
 }
 
+export async function deleteSemuaPengajuanBulk(formData: FormData) {
+  await requireAdminPermission(DASHBOARD_PERMISSIONS.SEMUA);
+
+  const ids = formData.getAll("ids").map((id) => String(id)).filter(Boolean);
+  if (ids.length === 0) return;
+
+  await prisma.semua_pengajuan.deleteMany({ where: { id: { in: ids } } });
+
+  revalidatePath("/dashboard/semua");
+  revalidatePath("/pengajuan/semua");
+  revalidatePath("/pengajuan/bulanan");
+  revalidatePath("/pengajuan/iklan");
+}
+
 export async function updateSemuaPengajuanStatus(formData: FormData) {
   await requireAdminPermission(DASHBOARD_PERMISSIONS.SEMUA);
 

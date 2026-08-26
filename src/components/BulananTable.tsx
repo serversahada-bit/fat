@@ -215,7 +215,7 @@ export function BulananTable({ items }: { items: PengajuanBulanan[] }) {
         <td className="px-4 py-4 text-center text-slate-600">{item.pic}</td>
         <td className={`min-w-[200px] whitespace-normal px-4 py-4 ${indented ? "pl-10" : ""}`}>
           <div className="font-semibold text-slate-900">{item.rincian}</div>
-          <div className="mt-0.5 text-xs text-slate-500">{item.bulan}</div>
+          <div className="mt-0.5 text-xs text-slate-500">Pengajuan untuk bulan {item.bulan}</div>
         </td>
         <td className="px-4 py-4 text-center font-medium text-slate-700">
           <div className="flex items-center justify-center gap-1">
@@ -228,7 +228,7 @@ export function BulananTable({ items }: { items: PengajuanBulanan[] }) {
           </div>
         </td>
         <td className="px-4 py-4 text-right font-bold text-slate-900">{formatCurrency(item.total)}</td>
-        <td className="px-4 py-4 text-center text-xs text-slate-500">{formatDate(item.createdAt)}</td>
+        <td className="px-4 py-4 text-center text-xs text-slate-500">Diajukan tanggal {formatDate(item.createdAt)}</td>
         <td className="min-w-[250px] px-4 py-4 text-left">
           {item.catatanTambahan && (
             <div className="mb-3 rounded-lg border border-slate-100 bg-slate-50 p-2 text-xs">
@@ -375,13 +375,13 @@ export function BulananTable({ items }: { items: PengajuanBulanan[] }) {
                         {isExpanded ? <ChevronDown className="h-4 w-4 shrink-0" /> : <ChevronRight className="h-4 w-4 shrink-0" />}
                         {group.items.length} item digabung
                       </div>
-                      <div className="mt-0.5 pl-6 text-xs text-slate-500">{group.bulan}</div>
+                      <div className="mt-0.5 pl-6 text-xs text-slate-500">Pengajuan untuk bulan {group.bulan}</div>
                     </td>
                     <td className="px-4 py-4 text-center text-slate-400">-</td>
                     <td className="px-4 py-4 text-right text-slate-400">-</td>
                     <td className="px-4 py-4 text-right font-bold text-slate-900">{formatCurrency(group.totalBudget)}</td>
                     <td className="px-4 py-4 text-center text-xs text-slate-500">
-                      <div>{formatDate(group.latestCreatedAt)}</div>
+                      <div>Diajukan tanggal {formatDate(group.latestCreatedAt)}</div>
                       <div className="text-slate-400">(terbaru)</div>
                     </td>
                     <td className="px-4 py-4 text-left text-xs text-slate-400">-</td>

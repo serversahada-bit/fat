@@ -168,7 +168,7 @@ export default async function PengajuanBulananPage({
   return (
     <AppShell user={session.user}
       title="Data Pengajuan Bulanan"
-      subtitle="Kelola informasi, persetujuan, dan pencatatan kebutuhan bulanan di sini."
+      subtitle={`Menampilkan pengajuan untuk bulan ${currentBulan}.`}
       navItems={navItems}
       headerActions={headerActions}
     >
@@ -187,7 +187,7 @@ export default async function PengajuanBulananPage({
               </div>
 
               <div className="custom-scrollbar overflow-y-auto p-6 md:p-8">
-                <PengajuanBulananForm dbUser={dbUser} totalSisa={totalSisa} />
+                <PengajuanBulananForm dbUser={dbUser} totalSisa={totalSisa} bulanLabel={currentBulan} />
               </div>
             </div>
           </div>

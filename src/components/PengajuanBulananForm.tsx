@@ -12,12 +12,14 @@ function formatCurrency(amount: number) {
   }).format(amount);
 }
 
-export function PengajuanBulananForm({ 
-  dbUser, 
-  totalSisa 
-}: { 
-  dbUser: any, 
-  totalSisa: number 
+export function PengajuanBulananForm({
+  dbUser,
+  totalSisa,
+  bulanLabel,
+}: {
+  dbUser: any,
+  totalSisa: number,
+  bulanLabel: string,
 }) {
   const [qty, setQty] = useState(1);
   const [hargaSatuan, setHargaSatuan] = useState(0);
@@ -27,6 +29,10 @@ export function PengajuanBulananForm({
 
   return (
     <form action={createKebutuhanBulanan} className="flex flex-col gap-6">
+      <div className="rounded-xl border border-purple-100 bg-purple-50 px-4 py-3 text-sm text-purple-700">
+        Pengajuan ini akan dianggarkan untuk bulan <span className="font-semibold">{bulanLabel}</span>.
+      </div>
+
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2 md:gap-6">
         <div className="flex flex-col gap-2 md:col-span-2">
           <label htmlFor="kategori" className="text-sm font-semibold text-slate-700">Kategori Kebutuhan</label>
