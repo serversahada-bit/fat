@@ -45,7 +45,7 @@ function formatDate(date: Date) {
   }).format(date);
 }
 
-const PLATFORM_OPTIONS = ["Meta Ads", "Google Ads", "TikTok Ads", "Snack Video", "Marketplace"];
+const PLATFORM_OPTIONS = ["Meta Ads", "Google Ads", "TikTok Ads", "Snack Video", "Marketplace", "Marcom", "CRM", "CSO", "Lainnya"];
 const SATUAN_OPTIONS = ["UNIT", "PCS", "BOX", "ORANG", "BANDLE", "PACK", "BULANAN", "MINGGUAN", "HARI", "JAM", "LITER", "KG", "RIM", "SET", "VIDEO", "FOTO", "SHEETS", "DUS"];
 
 export function IklanTable({ items }: { items: PengajuanIklan[] }) {

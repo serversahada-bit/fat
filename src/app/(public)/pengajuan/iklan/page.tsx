@@ -226,6 +226,9 @@ export default async function PengajuanIklanPage({
                         <option value="TikTok Ads">TikTok Ads</option>
                         <option value="Snack Video">Snack Video</option>
                         <option value="Marketplace">Marketplace</option>
+                        <option value="Marcom">Marcom</option>
+                        <option value="CRM">CRM</option>
+                        <option value="CSO">CSO</option>
                         <option value="Lainnya">Lainnya</option>
                       </select>
                     </div>

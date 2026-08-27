@@ -55,7 +55,10 @@ export default async function ApprovalIklanPage({
     currentTab === "Google Ads" ? "Google Ads" :
     currentTab === "TikTok Ads" ? "TikTok Ads" :
     currentTab === "Snack Video" ? "Snack Video" :
-    currentTab === "Marketplace" ? "Marketplace" : undefined;
+    currentTab === "Marketplace" ? "Marketplace" :
+    currentTab === "Marcom" ? "Marcom" :
+    currentTab === "CRM" ? "CRM" :
+    currentTab === "CSO" ? "CSO" : undefined;
 
   const whereClause: { platform?: string } = {};
   if (platformFilter) {
@@ -152,7 +155,7 @@ export default async function ApprovalIklanPage({
         <section className="shadow-card rounded-2xl border border-slate-200 bg-white p-4 md:p-8">
           <div className="mb-6 flex flex-col justify-between gap-4 border-b border-slate-100 pb-6 sm:flex-row sm:items-center">
             <div className="flex flex-wrap items-center gap-2">
-              {["Semua", "Meta Ads", "Google Ads", "TikTok Ads", "Snack Video", "Marketplace"].map((tab) => (
+              {["Semua", "Meta Ads", "Google Ads", "TikTok Ads", "Snack Video", "Marketplace", "Marcom", "CRM", "CSO"].map((tab) => (
                 <Link
                   key={tab}
                   href={`/dashboard/iklan?tab=${tab}`}
