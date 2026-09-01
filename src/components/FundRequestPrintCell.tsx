@@ -137,6 +137,20 @@ function loadImageAsDataUrl(src: string) {
   });
 }
 
+// The form below is authored against this virtual A4-landscape canvas (mm).
+const DESIGN_WIDTH_MM = 297;
+const DESIGN_HEIGHT_MM = 210;
+
+// Page stays standard A4 landscape - a custom PDF page size confuses print dialogs
+// (they default to a printer's normal paper and mis-preview a non-standard size).
+// Instead, the form is shrunk to the real target paper (22cm x 16cm) and framed with
+// a dashed cut guide centered on the A4 sheet, so printing is normal and there's one
+// precise line to cut along afterward.
+const CUT_WIDTH_MM = 220;
+const CUT_HEIGHT_MM = 160;
+const CUT_X_MM = (DESIGN_WIDTH_MM - CUT_WIDTH_MM) / 2;
+const CUT_Y_MM = (DESIGN_HEIGHT_MM - CUT_HEIGHT_MM) / 2;
+
 async function createFundRequestPdf(data: FundRequestPrintData, tipePengajuan: string, signatures: any[] = []) {
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4", compress: true });
   const title = tipePengajuan === "KASBON" ? "FORMULIR PERMOHONAN DANA KASBON" : "FORMULIR PERMOHONAN DANA";
@@ -148,6 +162,30 @@ async function createFundRequestPdf(data: FundRequestPrintData, tipePengajuan: s
   const appliedBy = data.email || data.userName || "";
   const verifiedBy = data.verifiedFinance ? `3 0524 0106 - ${FINANCE_EMAIL}` : "";
   const logo = await loadImageAsDataUrl("/sas.png");
+
+  // Draw the cut guide (unscaled, in real page mm) before the scaled content on top of it.
+  doc.setDrawColor(150, 150, 150);
+  doc.setLineWidth(0.3);
+  doc.setLineDashPattern([2, 1.5], 0);
+  doc.rect(CUT_X_MM, CUT_Y_MM, CUT_WIDTH_MM, CUT_HEIGHT_MM);
+  doc.setLineDashPattern([], 0);
+  doc.setFont("helvetica", "italic");
+  doc.setFontSize(7);
+  doc.setTextColor(120, 120, 120);
+  doc.text("✂ potong di garis ini — hasil 22 x 16 cm", CUT_X_MM, CUT_Y_MM - 2);
+  doc.setTextColor(0, 0, 0);
+
+  // Scale the whole design canvas down uniformly (no distortion) to fit the cut
+  // guide, and center it inside that guide.
+  const scale = CUT_WIDTH_MM / DESIGN_WIDTH_MM;
+  const offsetXMm = CUT_X_MM;
+  const offsetYMm = CUT_Y_MM + (CUT_HEIGHT_MM - DESIGN_HEIGHT_MM * scale) / 2;
+  // setCurrentTransformationMatrix's e/f translation is in raw PDF points, unlike
+  // every other jsPDF call here which takes mm - convert explicitly or the offset
+  // lands in the wrong place.
+  const ptPerMm = doc.internal.scaleFactor;
+  doc.saveGraphicsState();
+  doc.setCurrentTransformationMatrix(doc.Matrix(scale, 0, 0, scale, offsetXMm * ptPerMm, offsetYMm * ptPerMm));
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(14);
@@ -353,6 +391,8 @@ async function createFundRequestPdf(data: FundRequestPrintData, tipePengajuan: s
     doc.setDrawColor(0, 0, 0);
   }
 
+  doc.restoreGraphicsState();
+
   return doc;
 }
 
@@ -440,7 +480,7 @@ export function FundRequestPrintCell({ id, initialValue, data, signatures = [] }
             <div className="flex items-start justify-between px-6 py-5">
               <div>
                 <h2 className="text-xl font-bold text-slate-900">Preview PDF</h2>
-                <p className="mt-1 text-sm text-slate-500">Format A4 landscape</p>
+                <p className="mt-1 text-sm text-slate-500">Format A4 landscape — ada garis panduan potong untuk hasil 22 x 16 cm</p>
               </div>
               <button
                 type="button"
