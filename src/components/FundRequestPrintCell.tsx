@@ -143,7 +143,7 @@ function loadImageAsDataUrl(src: string) {
 const DESIGN_WIDTH_MM = 297;
 const LEGAL_WIDTH_MM = 215.9; // 8.5in
 const LEGAL_HEIGHT_MM = 355.6; // 14in
-const TOP_MARGIN_MM = 8;
+const TOP_MARGIN_MM = 3;
 
 async function createFundRequestPdf(data: FundRequestPrintData, tipePengajuan: string, signatures: any[] = []) {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "legal", compress: true });
