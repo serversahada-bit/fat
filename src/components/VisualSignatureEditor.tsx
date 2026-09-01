@@ -4,7 +4,10 @@ import React, { useState } from "react";
 import { Rnd } from "react-rnd";
 import { saveAllSignatures } from "@/app/actions/setting";
 
-const CATEGORIES = ["Semua", "ATK", "P3K", "Operasional", "Iklan", "Meta Ads", "Google Ads", "TikTok Ads", "Snack Video", "Marketplace"];
+// Must match the exact kategori/tab strings used wherever a PDF export looks up a
+// signature layout (ExportPDFButton's `kategori` prop, FundRequestPrintCell) - not
+// free-text divisi names, which never get passed as that lookup key.
+const CATEGORIES = ["Semua", "ATK", "P3K", "Operasional", "Iklan", "Meta Ads", "Google Ads", "TikTok Ads", "Snack Video", "Marketplace", "Marcom", "CRM", "CSO"];
 
 interface Signature {
   id: string;
@@ -18,7 +21,7 @@ interface Signature {
 
 export function VisualSignatureEditor({ initialSignatures }: { initialSignatures: Signature[] }) {
   const [selectedCategory, setSelectedCategory] = useState("Semua");
-  
+
   const defaultSignatures = (cat: string): Signature[] => {
     if (cat === "Meta Ads") {
       return [
