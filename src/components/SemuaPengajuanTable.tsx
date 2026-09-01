@@ -448,6 +448,7 @@ export function SemuaPengajuanTable({
                     jenisPajak: item.jenisPajak,
                     nilaiPajakTerutang: item.nilaiPajakTerutang,
                     bankOut: item.bankOut,
+                    bankPengirim: item.bankPengirim,
                     adaPpn: item.adaPpn,
                     verifiedTax: item.verifiedTax,
                     timestampVerifyTax: item.timestampVerifyTax?.toISOString(),

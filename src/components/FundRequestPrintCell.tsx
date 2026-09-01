@@ -21,6 +21,7 @@ type FundRequestPrintData = {
   jenisPajak?: string | null;
   nilaiPajakTerutang?: number | null;
   bankOut?: string | null;
+  bankPengirim?: string | null;
   adaPpn?: string | null;
   verifiedTax?: string | null;
   timestampVerifyTax?: string | null;
@@ -305,7 +306,7 @@ async function createFundRequestPdf(data: FundRequestPrintData, tipePengajuan: s
   
   doc.text("REKENING KAS", 130, 157);
   doc.text(":", 185, 157);
-  drawDottedLine(doc, 192, 157.5, 75, data.bankOut || "");
+  drawDottedLine(doc, 192, 157.5, 75, data.bankPengirim || "");
   
   doc.text("TOTAL YANG DIBAYAR", 130, 164);
   doc.text(":", 185, 164);
