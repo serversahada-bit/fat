@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { DASHBOARD_PERMISSIONS, requireAdminPermission, requireRole } from "@/lib/auth";
-import { getBulanLabel, getBulanLabelWithCutoff } from "@/lib/bulan";
+import { getBulanLabelWithCutoff } from "@/lib/bulan";
 
 export async function deleteKebutuhanBulananBulk(formData: FormData) {
   await requireAdminPermission(DASHBOARD_PERMISSIONS.BULANAN);
@@ -73,8 +73,9 @@ export async function createPengajuan(formData: FormData) {
 export async function createKebutuhanBulanan(formData: FormData) {
   const session = await requireRole("KARYAWAN");
 
-  // Kebutuhan bulanan diajukan bulan ini untuk dipakai/dianggarkan bulan berikutnya.
-  const bulan = getBulanLabel(1);
+  // Submitted on or after the 24th of the month, the request is too late to spend this
+  // month, so it's budgeted for next month instead (e.g. Aug 31 tags as September).
+  const bulan = getBulanLabelWithCutoff();
 
   const dbUser = await prisma.user.findUnique({ where: { id: session.user.id } });
   const divisi = dbUser?.divisi || "Belum diatur";
@@ -167,7 +168,7 @@ export async function updatePengajuanStatus(formData: FormData) {
 export async function createKebutuhanIklan(formData: FormData) {
   const session = await requireRole("KARYAWAN");
 
-  // Submitted after the 20th of the month, the request is too late to spend this
+  // Submitted on or after the 24th of the month, the request is too late to spend this
   // month, so it's budgeted for next month instead (e.g. Aug 31 tags as September).
   const bulan = getBulanLabelWithCutoff();
 

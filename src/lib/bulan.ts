@@ -17,11 +17,11 @@ export function getBulanLabel(monthOffset: number) {
 }
 
 /**
- * Submissions made after the cutoff day (default 20) of a month are too late to spend
- * this month, so they're budgeted for next month instead (e.g. submitting Aug 31 tags
- * the item as September).
+ * Submissions made on or after the cutoff day (default 24) of a month are too late to
+ * spend this month, so they're budgeted for next month instead (e.g. submitting Aug 24
+ * onward tags the item as September).
  */
-export function getBulanLabelWithCutoff(cutoffDay = 20) {
+export function getBulanLabelWithCutoff(cutoffDay = 23) {
   const day = Number(
     new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta", day: "numeric" }).format(new Date()),
   );

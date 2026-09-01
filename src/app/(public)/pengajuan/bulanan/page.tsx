@@ -6,7 +6,7 @@ import { getFinanceSubmissionSetting } from "@/app/actions/setting";
 import { PengajuanBulananForm } from "@/components/PengajuanBulananForm";
 import { PengajuanBulananTable } from "@/components/PengajuanBulananTable";
 import { EMPLOYEE_PERMISSIONS, requireEmployeePermission } from "@/lib/auth";
-import { getBulanLabel } from "@/lib/bulan";
+import { getBulanLabelWithCutoff } from "@/lib/bulan";
 import { getVisibleEmployeeNavItems } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
@@ -49,9 +49,9 @@ export default async function PengajuanBulananPage({
     currentTab === "Operasional" ? "OPS RT" : 
     currentTab === "NON-RAB" ? "DI LUAR RAB" : undefined;
 
-  // Kebutuhan bulanan diajukan bulan ini untuk dianggarkan bulan berikutnya,
-  // jadi daftar yang ditampilkan difilter berdasarkan bulan berikutnya juga.
-  const currentBulan = getBulanLabel(1);
+  // Kebutuhan bulanan diajukan tanggal 24 ke atas dianggarkan bulan berikutnya,
+  // jadi daftar yang ditampilkan difilter berdasarkan aturan yang sama.
+  const currentBulan = getBulanLabelWithCutoff();
 
   const whereClause: { userId: string; kategori?: string; bulan?: string } = {
     userId: session.user.id,
