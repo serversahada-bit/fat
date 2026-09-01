@@ -137,22 +137,16 @@ function loadImageAsDataUrl(src: string) {
   });
 }
 
-// The form below is authored against this virtual A4-landscape canvas (mm).
+// The form itself stays exactly as originally designed (A4 landscape, 297x210mm) -
+// it's just shrunk to fit the width of Legal paper and placed at the very top of it,
+// since the office printer/paper stock only feeds Legal-size portrait sheets.
 const DESIGN_WIDTH_MM = 297;
-const DESIGN_HEIGHT_MM = 210;
-
-// Page stays standard A4 landscape - a custom PDF page size confuses print dialogs
-// (they default to a printer's normal paper and mis-preview a non-standard size).
-// Instead, the form is shrunk to the real target paper (22cm x 16cm) and framed with
-// a dashed cut guide centered on the A4 sheet, so printing is normal and there's one
-// precise line to cut along afterward.
-const CUT_WIDTH_MM = 220;
-const CUT_HEIGHT_MM = 160;
-const CUT_X_MM = (DESIGN_WIDTH_MM - CUT_WIDTH_MM) / 2;
-const CUT_Y_MM = (DESIGN_HEIGHT_MM - CUT_HEIGHT_MM) / 2;
+const LEGAL_WIDTH_MM = 215.9; // 8.5in
+const LEGAL_HEIGHT_MM = 355.6; // 14in
+const TOP_MARGIN_MM = 8;
 
 async function createFundRequestPdf(data: FundRequestPrintData, tipePengajuan: string, signatures: any[] = []) {
-  const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4", compress: true });
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "legal", compress: true });
   const title = tipePengajuan === "KASBON" ? "FORMULIR PERMOHONAN DANA KASBON" : "FORMULIR PERMOHONAN DANA";
   const nominal = data.nominalRealisasi ?? data.nominalTransaksi ?? null;
   const transaksi = normalize(data.tipeTransaksi);
@@ -163,34 +157,22 @@ async function createFundRequestPdf(data: FundRequestPrintData, tipePengajuan: s
   const verifiedBy = data.verifiedFinance ? `3 0524 0106 - ${FINANCE_EMAIL}` : "";
   const logo = await loadImageAsDataUrl("/sas.png");
 
-  // Draw the cut guide (unscaled, in real page mm) before the scaled content on top of it.
-  doc.setDrawColor(150, 150, 150);
-  doc.setLineWidth(0.3);
-  doc.setLineDashPattern([2, 1.5], 0);
-  doc.rect(CUT_X_MM, CUT_Y_MM, CUT_WIDTH_MM, CUT_HEIGHT_MM);
-  doc.setLineDashPattern([], 0);
-  doc.setFont("helvetica", "italic");
-  doc.setFontSize(7);
-  doc.setTextColor(120, 120, 120);
-  doc.text("✂ potong di garis ini — hasil 22 x 16 cm", CUT_X_MM, CUT_Y_MM - 2);
-  doc.setTextColor(0, 0, 0);
-
-  // Scale the whole design canvas down uniformly (no distortion) to fit the cut
-  // guide, and center it inside that guide.
-  const scale = CUT_WIDTH_MM / DESIGN_WIDTH_MM;
-  const offsetXMm = CUT_X_MM;
-  const offsetYMm = CUT_Y_MM + (CUT_HEIGHT_MM - DESIGN_HEIGHT_MM * scale) / 2;
-  // setCurrentTransformationMatrix's e/f translation is in raw PDF points, unlike
-  // every other jsPDF call here which takes mm - convert explicitly or the offset
-  // lands in the wrong place.
+  // Scale the whole (unmodified) landscape design down to the Legal page's width and
+  // pin it to the top. setCurrentTransformationMatrix's e/f translation is in raw PDF
+  // points, unlike every other jsPDF call here which takes mm - convert explicitly.
+  // jsPDF's own y-flip (top-down mm -> bottom-up pt) uses the ACTUAL page height
+  // (Legal, much taller than the design canvas), so the offset needed to pin content
+  // to TOP_MARGIN_MM from the top has to account for that difference too.
+  const scale = LEGAL_WIDTH_MM / DESIGN_WIDTH_MM;
   const ptPerMm = doc.internal.scaleFactor;
+  const offsetYMm = LEGAL_HEIGHT_MM * (1 - scale) - TOP_MARGIN_MM;
   doc.saveGraphicsState();
-  doc.setCurrentTransformationMatrix(doc.Matrix(scale, 0, 0, scale, offsetXMm * ptPerMm, offsetYMm * ptPerMm));
+  doc.setCurrentTransformationMatrix(doc.Matrix(scale, 0, 0, scale, 0, offsetYMm * ptPerMm));
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(14);
   doc.text(title, 12, 28);
-  
+
   doc.setDrawColor(0, 0, 0);
   doc.setLineWidth(0.25);
   doc.setFontSize(9);
@@ -198,7 +180,7 @@ async function createFundRequestPdf(data: FundRequestPrintData, tipePengajuan: s
   doc.text("Tanggal Permohonan", 12, 36);
   doc.text(":", 48, 36);
   doc.text(formatDate(data.tanggalPermohonan), 52, 36);
-  
+
   doc.text("Kepada", 12, 42);
   doc.text(":", 48, 42);
   doc.setFont("helvetica", "bold");
@@ -215,7 +197,7 @@ async function createFundRequestPdf(data: FundRequestPrintData, tipePengajuan: s
 
   // Outer Table Box
   doc.rect(10, 20, 277, 180);
-  
+
   // Row 0 separator
   doc.line(10, 46, 287, 46);
 
@@ -227,7 +209,7 @@ async function createFundRequestPdf(data: FundRequestPrintData, tipePengajuan: s
   doc.setFont("helvetica", "italic");
   doc.text("(silang salah satu)", 12, 59);
   doc.setFont("helvetica", "normal");
-  
+
   drawCheckbox(doc, 52, 50, "Tagihan", isSelected(transaksi, "TAGIHAN"));
   drawCheckbox(doc, 90, 50, "Overbooking", isSelected(transaksi, "OVERBOOKING"), true);
   drawCheckbox(doc, 130, 50, "Iklan", isSelected(transaksi, "IKLAN"));
@@ -235,7 +217,7 @@ async function createFundRequestPdf(data: FundRequestPrintData, tipePengajuan: s
   drawCheckbox(doc, 200, 50, "Pajak", isSelected(transaksi, "PAJAK"));
   doc.text("Nomor Bukti :", 235, 53);
   drawDottedLine(doc, 258, 53, 27, data.nomorBukti || data.nomorCetakForm || "");
-  
+
   drawCheckbox(doc, 52, 58, "Payroll", isSelected(transaksi, "PAYROLL"));
   const otherTransaction = !["TAGIHAN", "OVERBOOKING", "IKLAN", "OPERASIONAL", "PAJAK", "PAYROLL"].some((item) => transaksi.includes(item));
   drawCheckbox(doc, 90, 58, "Transaksi Lainnya :", otherTransaction && Boolean(transaksi));
@@ -247,7 +229,7 @@ async function createFundRequestPdf(data: FundRequestPrintData, tipePengajuan: s
   doc.text("Tipe Pembayaran", 12, 72);
   doc.setFont("helvetica", "normal");
   doc.text(":", 48, 72);
-  
+
   drawCheckbox(doc, 52, 69.5, "Tunai", isSelected(pembayaran, "TUNAI"));
   drawCheckbox(doc, 90, 69.5, "Transfer Bank", isSelected(pembayaran, "TRANSFER"));
   drawCheckbox(doc, 130, 69.5, "Cek/BG", isSelected(pembayaran, "CEK") || isSelected(pembayaran, "BG"));
@@ -260,7 +242,7 @@ async function createFundRequestPdf(data: FundRequestPrintData, tipePengajuan: s
   // ROW 3: Informasi Penerima
   doc.line(10, 76, 287, 76);
   doc.line(160, 76, 160, 112);
-  
+
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
   doc.text("Informasi Penerima", 12, 82);
@@ -271,11 +253,11 @@ async function createFundRequestPdf(data: FundRequestPrintData, tipePengajuan: s
   drawCheckbox(doc, 52, 86, "Perorangan", isSelected(penerima, "PERORANGAN"));
   drawCheckbox(doc, 85, 86, "Perusahaan", isSelected(penerima, "PERUSAHAAN"));
   drawCheckbox(doc, 115, 86, "Pemerintah", isSelected(penerima, "PEMERINTAH"));
-  
+
   drawLabelLine(doc, "Nama", data.namaPenerima || "", 12, 96, 36, 105);
   drawLabelLine(doc, "Bank", data.detailBankPenerima || "", 12, 103, 36, 105);
   drawLabelLine(doc, "Nomor Rekening / VA", data.nomorRekeningHp || "", 12, 110, 36, 105);
-  
+
   doc.rect(162, 78, 123, 12);
   doc.setTextColor(0, 80, 216);
   doc.setFont("helvetica", "bold");
@@ -283,7 +265,7 @@ async function createFundRequestPdf(data: FundRequestPrintData, tipePengajuan: s
   doc.setFont("helvetica", "normal");
   doc.text(data.email || "", 164, 88);
   doc.setTextColor(0, 0, 0);
-  
+
   doc.text("Nominal", 162, 96);
   doc.text(":", 190, 96);
   doc.text("Rp", 195, 96);
@@ -298,24 +280,24 @@ async function createFundRequestPdf(data: FundRequestPrintData, tipePengajuan: s
   // ROW 4: Verifikasi Pajak
   doc.line(10, 112, 287, 112);
   doc.line(225, 112, 225, 142);
-  
+
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
   doc.text("Verifikasi Pajak", 12, 118);
   doc.setTextColor(255, 0, 0);
   doc.text("TRANSAKSI BUKAN OBJEK PPH", 65, 118);
   doc.setTextColor(0, 0, 0);
-  
+
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
   drawLabelLine(doc, "NIK / NPWP", "", 12, 128, 36, 110);
   drawLabelLine(doc, "Nilai Pajak Terutang", formatNumber(data.nilaiPajakTerutang), 12, 137, 36, 110);
-  
+
   drawCheckbox(doc, 170, 124, "PPh Pasal 21", isSelected(pajak, "PASAL 21"));
   drawCheckbox(doc, 170, 133, "PPh Unifikasi", isSelected(pajak, "UNIFIKASI"));
   drawCheckbox(doc, 205, 124, "SKB", isSelected(pajak, "SKB"));
   drawCheckbox(doc, 205, 133, "PPN", isSelected(pajak, "PPN") || normalize(data.adaPpn) === "YA");
-  
+
   doc.setFont("helvetica", "bold");
   doc.text("VERIFIKASI TAX", 256, 118, { align: "center" });
   doc.setFont("helvetica", "normal");
@@ -336,16 +318,16 @@ async function createFundRequestPdf(data: FundRequestPrintData, tipePengajuan: s
   doc.text(":", 48, 157);
   doc.text("Rp", 52, 157);
   drawDottedLine(doc, 62, 157.5, 50, formatNumber(data.nominalTransaksi));
-  
+
   doc.text("POTONGAN", 12, 164);
   doc.text(":", 48, 164);
   doc.text("Rp", 52, 164);
   drawDottedLine(doc, 62, 164.5, 50, formatNumber(data.nilaiPajakTerutang));
-  
+
   doc.text("REKENING KAS", 130, 157);
   doc.text(":", 185, 157);
   drawDottedLine(doc, 192, 157.5, 75, data.bankPengirim || "");
-  
+
   doc.text("TOTAL YANG DIBAYAR", 130, 164);
   doc.text(":", 185, 164);
   drawDottedLine(doc, 192, 164.5, 75, formatNumber(nominal));
@@ -354,19 +336,19 @@ async function createFundRequestPdf(data: FundRequestPrintData, tipePengajuan: s
   doc.line(10, 166, 287, 166);
   doc.line(102, 166, 102, 200);
   doc.line(194, 166, 194, 200);
-  
+
   doc.setFont("helvetica", "bold");
   doc.text("APPLIED BY SYSTEM", 56, 171, { align: "center" });
   doc.text("VERIFIED BY SYSTEM", 148, 171, { align: "center" });
   doc.text("Pengesahan oleh Atasan", 240.5, 171, { align: "center" });
   doc.line(10, 174, 287, 174);
-  
+
   doc.setFont("helvetica", "normal");
   doc.text("DETAIL USER :", 12, 180);
   doc.setFont("helvetica", "italic");
   doc.text(appliedBy, 12, 186);
   doc.text(formatDateTime(data.timestamp), 12, 192);
-  
+
   doc.setFont("helvetica", "normal");
   doc.text("DETAIL USER :", 104, 180);
   doc.setFont("helvetica", "italic");
@@ -383,10 +365,10 @@ async function createFundRequestPdf(data: FundRequestPrintData, tipePengajuan: s
     doc.setLineWidth(0.3);
     doc.setDrawColor(37, 99, 235);
     doc.line(240.5 - nameWidth / 2, 191, 240.5 + nameWidth / 2, 191);
-    
+
     doc.setFont("helvetica", "normal");
     doc.text(managerSig.jabatan, 240.5, 195, { align: "center" });
-    
+
     doc.setTextColor(0, 0, 0);
     doc.setDrawColor(0, 0, 0);
   }
@@ -480,7 +462,7 @@ export function FundRequestPrintCell({ id, initialValue, data, signatures = [] }
             <div className="flex items-start justify-between px-6 py-5">
               <div>
                 <h2 className="text-xl font-bold text-slate-900">Preview PDF</h2>
-                <p className="mt-1 text-sm text-slate-500">Format A4 landscape — ada garis panduan potong untuk hasil 22 x 16 cm</p>
+                <p className="mt-1 text-sm text-slate-500">Kertas Legal — form di bagian atas halaman</p>
               </div>
               <button
                 type="button"
