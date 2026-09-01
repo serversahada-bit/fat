@@ -57,8 +57,11 @@ export function FinanceSubmissionLauncher({
   const [isOpen, setIsOpen] = useState(false);
 
   const isLegacyDisabled = Boolean(submittedStatus);
+  // A pending finance submission no longer blocks further submissions on its own -
+  // as long as sisaBudget is still positive, the employee can submit another tranche
+  // for the remaining amount while the earlier one is still awaiting finance.
   const isBudgetDisabled = sisaBudget !== undefined
-    ? (hasPending || sisaBudget <= 0)
+    ? sisaBudget <= 0
     : isLegacyDisabled;
 
   const isNotYetOpen = Boolean(
@@ -73,7 +76,7 @@ export function FinanceSubmissionLauncher({
     if (sisaBudget <= 0) {
       buttonText = "Budget Terpakai Habis";
     } else if (hasPending) {
-      buttonText = "Menunggu Finance";
+      buttonText = "Ajukan Sisa ke Finance";
     } else {
       buttonText = "Ajukan ke Finance";
     }

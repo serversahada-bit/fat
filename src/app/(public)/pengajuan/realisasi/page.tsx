@@ -1,7 +1,6 @@
 export const dynamic = "force-dynamic";
 
 import { AppShell } from "@/components/AppShell";
-import { AddRealisasiManualButton } from "@/components/AddRealisasiManualButton";
 import { CatatanPribadiCell } from "@/components/CatatanPribadiCell";
 import { AddCatatanPribadiButton } from "@/components/AddCatatanPribadiButton";
 import { DeleteCatatanPribadiButton } from "@/components/DeleteCatatanPribadiButton";
@@ -454,7 +453,6 @@ export default async function RealisasiRabPage() {
                   <th className="px-4 py-4 text-right font-semibold">REALISASI (Rp)</th>
                   <th className="px-4 py-4 text-right font-semibold">SELISIH (Rp)</th>
                   <th className="px-4 py-4 font-semibold">CATATAN TAMBAHAN</th>
-                  <th className="px-4 py-4 text-center font-semibold">AKSI</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-sm">
@@ -472,9 +470,6 @@ export default async function RealisasiRabPage() {
                     <td className="min-w-[200px] whitespace-normal px-4 py-4">
                       {item.catatanTambahan ?? <span className="text-slate-400">Belum direalisasikan</span>}
                     </td>
-                    <td className="px-4 py-4 text-center">
-                      <AddRealisasiManualButton sourceType={item.sourceType} sourceId={item.id} uraian={item.uraian} />
-                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -484,7 +479,7 @@ export default async function RealisasiRabPage() {
                   <td className="px-4 py-4 text-right font-bold text-slate-900">{formatCurrency(itemTotal.total)}</td>
                   <td className="px-4 py-4 text-right font-bold text-emerald-700">{formatCurrency(itemTotal.realisasi)}</td>
                   <td className="px-4 py-4 text-right font-bold text-amber-700">{formatCurrency(itemTotal.total - itemTotal.realisasi)}</td>
-                  <td className="px-4 py-4" colSpan={2}></td>
+                  <td className="px-4 py-4"></td>
                 </tr>
               </tfoot>
             </table>

@@ -86,8 +86,10 @@ export function PengajuanBulananTable({
   const isApprovedOnlySelection = selectedRows.length > 0 && selectedRows.every((row) => row.item.status === "APPROVED");
 
   const isScheduleOpen = financeSubmissionEnabled && !(financeSubmissionStartDate && today < financeSubmissionStartDate);
+  // A pending finance submission on an item no longer excludes it from a new batch -
+  // only a fully used-up sisaBudget does (mirrors FinanceSubmissionLauncher's rule).
   const allApprovedEligible = isApprovedOnlySelection && isScheduleOpen && selectedRows.every(
-    (row) => row.sisaBudget > 0 && !(row.financeData?.hasPending)
+    (row) => row.sisaBudget > 0
   );
 
   useEffect(() => {
