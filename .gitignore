@@ -35,6 +35,9 @@ yarn-error.log*
 /temp_docx/
 /next.lock/
 
+# user-uploaded files (finance/tax lampiran, invoices, signatures) - not repo content
+/public/uploads/
+
 # env files (can opt-in for committing if needed)
 .env*
 

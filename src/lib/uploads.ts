@@ -80,3 +80,10 @@ export function getUploadAbsolutePathFromUrl(url: string) {
   return path.join(getUploadRootDir(), ...relativePath);
 }
 
+// Stored filenames are prefixed with "<timestamp>-<uuid>-" to keep them unique on
+// disk; strip that back off so downloads are named after the original file.
+export function getUploadDisplayName(url: string) {
+  const filename = normalizeUploadUrl(url).split("/").pop() ?? "";
+  return filename.replace(/^\d+-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}-/i, "") || filename;
+}
+

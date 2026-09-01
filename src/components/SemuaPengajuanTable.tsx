@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { Filter, Trash2, X as XIcon } from "lucide-react";
+import { Download, Filter, Trash2, X as XIcon } from "lucide-react";
 import Link from "next/link";
 import { InlineEdit } from "@/components/InlineEdit";
 import { FundRequestPrintCell } from "@/components/FundRequestPrintCell";
 import { TopScrollTable } from "@/components/TopScrollTable";
 import { UploadInvoiceButton } from "@/components/UploadInvoiceButton";
-import { parseUploadUrls } from "@/lib/uploads";
+import { getUploadDisplayName, parseUploadUrls } from "@/lib/uploads";
 import { deleteSemuaPengajuanBulk } from "@/app/actions/semua_pengajuan";
 
 type PengajuanStatus = "PENDING" | "APPROVED" | "REJECTED";
@@ -392,9 +392,19 @@ export function SemuaPengajuanTable({
                   {parseUploadUrls(item.lampiranFinance).length > 0 ? (
                     <div className="flex flex-wrap gap-2">
                       {parseUploadUrls(item.lampiranFinance).map((url, index) => (
-                        <Link key={url} className="hover:underline" href={url} rel="noreferrer" target="_blank">
-                          Lampiran {index + 1}
-                        </Link>
+                        <span key={url} className="inline-flex items-center gap-1">
+                          <Link className="hover:underline" href={url} rel="noreferrer" target="_blank">
+                            Lampiran {index + 1}
+                          </Link>
+                          <a
+                            href={url}
+                            download={getUploadDisplayName(url)}
+                            title={`Unduh ${getUploadDisplayName(url)}`}
+                            className="rounded p-0.5 text-slate-400 transition-colors hover:bg-blue-50 hover:text-blue-600"
+                          >
+                            <Download className="h-3.5 w-3.5" />
+                          </a>
+                        </span>
                       ))}
                     </div>
                   ) : "-"}
@@ -403,9 +413,19 @@ export function SemuaPengajuanTable({
                   {parseUploadUrls(item.lampiranTax).length > 0 ? (
                     <div className="flex flex-wrap gap-2">
                       {parseUploadUrls(item.lampiranTax).map((url, index) => (
-                        <Link key={url} className="hover:underline" href={url} rel="noreferrer" target="_blank">
-                          Lampiran {index + 1}
-                        </Link>
+                        <span key={url} className="inline-flex items-center gap-1">
+                          <Link className="hover:underline" href={url} rel="noreferrer" target="_blank">
+                            Lampiran {index + 1}
+                          </Link>
+                          <a
+                            href={url}
+                            download={getUploadDisplayName(url)}
+                            title={`Unduh ${getUploadDisplayName(url)}`}
+                            className="rounded p-0.5 text-slate-400 transition-colors hover:bg-blue-50 hover:text-blue-600"
+                          >
+                            <Download className="h-3.5 w-3.5" />
+                          </a>
+                        </span>
                       ))}
                     </div>
                   ) : "-"}
