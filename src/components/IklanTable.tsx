@@ -6,7 +6,7 @@ import { Pencil, Trash2 } from "lucide-react";
 import { ApprovalDropdown } from "@/components/ApprovalDropdown";
 import { ApprovalNote } from "@/components/ApprovalNote";
 import { EditableAmount } from "@/components/EditableAmount";
-import { deleteKebutuhanIklanBulk, updateKebutuhanIklanAdminDetail, updateKebutuhanIklanBulan } from "@/app/actions/pengajuan";
+import { deleteKebutuhanIklanBulk, updateKebutuhanIklanAdminDetail, updateKebutuhanIklanBulan, updateKebutuhanIklanBulanBulk } from "@/app/actions/pengajuan";
 import { getBulanLabel } from "@/lib/bulan";
 
 type PengajuanStatus = "PENDING" | "APPROVED" | "REJECTED";
@@ -103,10 +103,14 @@ function EditableBulanIklan({ pengajuanId, bulan }: { pengajuanId: string; bulan
 }
 
 export function IklanTable({ items }: { items: PengajuanIklan[] }) {
+  const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [isPending, startTransition] = useTransition();
   const [editingItem, setEditingItem] = useState<PengajuanIklan | null>(null);
   const headerCheckboxRef = useRef<HTMLInputElement>(null);
+
+  // Correction range covers the realistic mistagging window: last, current, and next month.
+  const bulanBulkOptions = [getBulanLabel(-1), getBulanLabel(0), getBulanLabel(1)];
 
   useEffect(() => {
     setSelected((prev) => {
@@ -156,6 +160,20 @@ export function IklanTable({ items }: { items: PengajuanIklan[] }) {
     });
   }
 
+  function handleChangeBulanSelected(bulan: string) {
+    if (selected.size === 0 || !bulan) return;
+
+    const formData = new FormData();
+    Array.from(selected).forEach((id) => formData.append("ids", id));
+    formData.append("bulan", bulan);
+
+    startTransition(async () => {
+      await updateKebutuhanIklanBulanBulk(formData);
+      setSelected(new Set());
+      router.refresh();
+    });
+  }
+
   function handleRowDoubleClick(item: PengajuanIklan) {
     if (item.status !== "PENDING") return;
     setEditingItem(item);
@@ -166,15 +184,31 @@ export function IklanTable({ items }: { items: PengajuanIklan[] }) {
       {selected.size > 0 && (
         <div className="flex flex-col gap-3 rounded-xl border border-purple-200 bg-purple-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
           <span className="text-sm font-semibold text-purple-700">{selected.size} baris dipilih</span>
-          <button
-            type="button"
-            onClick={handleDeleteSelected}
-            disabled={isPending}
-            className="flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-            Hapus
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              disabled={isPending}
+              defaultValue=""
+              onChange={(e) => {
+                handleChangeBulanSelected(e.target.value);
+                e.target.value = "";
+              }}
+              className="rounded-lg border border-purple-300 bg-white px-3 py-1.5 text-xs font-semibold text-purple-700 outline-none focus:border-purple-600 focus:ring-1 focus:ring-purple-600 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <option value="" disabled>Ubah Bulan ke...</option>
+              {bulanBulkOptions.map((opt) => (
+                <option key={opt} value={opt}>{opt}</option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={handleDeleteSelected}
+              disabled={isPending}
+              className="flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Hapus
+            </button>
+          </div>
         </div>
       )}
 

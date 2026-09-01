@@ -568,6 +568,27 @@ export async function updateKebutuhanIklanBulan(formData: FormData) {
   revalidatePath("/pengajuan/iklan");
 }
 
+export async function updateKebutuhanIklanBulanBulk(formData: FormData) {
+  await requireAdminPermission(DASHBOARD_PERMISSIONS.IKLAN);
+
+  const ids = formData.getAll("ids").map((id) => String(id)).filter(Boolean);
+  const bulan = String(formData.get("bulan") ?? "").trim();
+  if (ids.length === 0 || !bulan) return;
+
+  let plafon = await prisma.plafon_iklan.findUnique({ where: { bulan } });
+  if (!plafon) {
+    plafon = await prisma.plafon_iklan.create({ data: { bulan, status: "DRAFT" } });
+  }
+
+  await prisma.kebutuhan_iklan.updateMany({
+    where: { id: { in: ids } },
+    data: { bulan, plafonId: plafon.id },
+  });
+
+  revalidatePath("/dashboard/iklan");
+  revalidatePath("/pengajuan/iklan");
+}
+
 export async function updateKebutuhanIklanEmployee(formData: FormData) {
   const session = await requireRole("KARYAWAN");
 

@@ -403,7 +403,8 @@ export function SemuaPengajuanForm({
             </label>
             <input
               accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.jpg,.jpeg,.png,.webp"
-              className="w-full rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-700 file:mr-4 file:rounded-lg file:border-0 file:bg-purple-600 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-purple-700"
+              className="w-full rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-700 file:mr-4 file:rounded-lg file:border-0 file:bg-purple-600 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={isPending}
               multiple
               name="lampiranFinance"
               type="file"
@@ -415,7 +416,8 @@ export function SemuaPengajuanForm({
             <label className="text-sm font-semibold text-slate-700">LAMPIRAN PENDUKUNG (TAX)</label>
             <input
               accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp"
-              className="w-full rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-700 file:mr-4 file:rounded-lg file:border-0 file:bg-slate-700 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-slate-800"
+              className="w-full rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-700 file:mr-4 file:rounded-lg file:border-0 file:bg-slate-700 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={isPending}
               multiple
               name="lampiranTax"
               type="file"
@@ -424,17 +426,34 @@ export function SemuaPengajuanForm({
           </div>
         </div>
 
+        {inlineMode && isPending && (
+          <div className="flex items-center gap-2 rounded-xl border border-purple-200 bg-purple-50 px-4 py-3 text-sm font-semibold text-purple-700">
+            <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+            </svg>
+            Sedang mengirim data &amp; mengunggah lampiran, mohon tunggu...
+          </div>
+        )}
+
         <div className="flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row">
           <button
-            className="w-full rounded-xl bg-purple-600 px-6 py-3 font-semibold text-white shadow-md transition-all hover:bg-purple-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-purple-600 px-6 py-3 font-semibold text-white shadow-md transition-all hover:bg-purple-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
             disabled={inlineMode ? isPending || nominalError : nominalError}
             type="submit"
           >
+            {inlineMode && isPending && (
+              <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+              </svg>
+            )}
             {inlineMode && isPending ? "Mengajukan..." : "Simpan Data"}
           </button>
           {inlineMode ? (
             <button
-              className="w-full rounded-xl border border-slate-200 bg-white px-6 py-3 text-center font-semibold text-slate-700 transition-all hover:bg-slate-50 sm:w-auto"
+              className="w-full rounded-xl border border-slate-200 bg-white px-6 py-3 text-center font-semibold text-slate-700 transition-all hover:bg-slate-50 sm:w-auto disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={isPending}
               onClick={onClose}
               type="button"
             >
