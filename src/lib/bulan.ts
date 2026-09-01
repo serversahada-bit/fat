@@ -15,3 +15,15 @@ export function getBulanLabel(monthOffset: number) {
 
   return `${NAMA_BULAN[targetMonthIndex]} ${targetYear}`;
 }
+
+/**
+ * Submissions made after the cutoff day (default 20) of a month are too late to spend
+ * this month, so they're budgeted for next month instead (e.g. submitting Aug 31 tags
+ * the item as September).
+ */
+export function getBulanLabelWithCutoff(cutoffDay = 20) {
+  const day = Number(
+    new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta", day: "numeric" }).format(new Date()),
+  );
+  return getBulanLabel(day > cutoffDay ? 1 : 0);
+}

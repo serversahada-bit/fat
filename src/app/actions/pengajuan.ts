@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { DASHBOARD_PERMISSIONS, requireAdminPermission, requireRole } from "@/lib/auth";
-import { getBulanLabel } from "@/lib/bulan";
+import { getBulanLabel, getBulanLabelWithCutoff } from "@/lib/bulan";
 
 export async function deleteKebutuhanBulananBulk(formData: FormData) {
   await requireAdminPermission(DASHBOARD_PERMISSIONS.BULANAN);
@@ -167,9 +167,9 @@ export async function updatePengajuanStatus(formData: FormData) {
 export async function createKebutuhanIklan(formData: FormData) {
   const session = await requireRole("KARYAWAN");
 
-  const date = new Date();
-  const namaBulan = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
-  const bulan = `${namaBulan[date.getMonth()]} ${date.getFullYear()}`;
+  // Submitted after the 20th of the month, the request is too late to spend this
+  // month, so it's budgeted for next month instead (e.g. Aug 31 tags as September).
+  const bulan = getBulanLabelWithCutoff();
 
   const dbUser = await prisma.user.findUnique({ where: { id: session.user.id } });
   const divisi = dbUser?.divisi || "Belum diatur";
@@ -537,6 +537,30 @@ export async function updateKebutuhanIklanAdminDetail(formData: FormData) {
   await prisma.kebutuhan_iklan.update({
     where: { id: pengajuanId },
     data: updateData,
+  });
+
+  revalidatePath("/dashboard/iklan");
+  revalidatePath("/pengajuan/iklan");
+}
+
+export async function updateKebutuhanIklanBulan(formData: FormData) {
+  await requireAdminPermission(DASHBOARD_PERMISSIONS.IKLAN);
+
+  const pengajuanId = String(formData.get("pengajuanId") ?? "");
+  const bulan = String(formData.get("bulan") ?? "").trim();
+  if (!pengajuanId || !bulan) return;
+
+  const existing = await prisma.kebutuhan_iklan.findUnique({ where: { id: pengajuanId } });
+  if (!existing || existing.bulan === bulan) return;
+
+  let plafon = await prisma.plafon_iklan.findUnique({ where: { bulan } });
+  if (!plafon) {
+    plafon = await prisma.plafon_iklan.create({ data: { bulan, status: "DRAFT" } });
+  }
+
+  await prisma.kebutuhan_iklan.update({
+    where: { id: pengajuanId },
+    data: { bulan, plafonId: plafon.id },
   });
 
   revalidatePath("/dashboard/iklan");

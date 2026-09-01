@@ -2,11 +2,12 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2 } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import { ApprovalDropdown } from "@/components/ApprovalDropdown";
 import { ApprovalNote } from "@/components/ApprovalNote";
 import { EditableAmount } from "@/components/EditableAmount";
-import { deleteKebutuhanIklanBulk, updateKebutuhanIklanAdminDetail } from "@/app/actions/pengajuan";
+import { deleteKebutuhanIklanBulk, updateKebutuhanIklanAdminDetail, updateKebutuhanIklanBulan } from "@/app/actions/pengajuan";
+import { getBulanLabel } from "@/lib/bulan";
 
 type PengajuanStatus = "PENDING" | "APPROVED" | "REJECTED";
 
@@ -47,6 +48,59 @@ function formatDate(date: Date) {
 
 const PLATFORM_OPTIONS = ["Meta Ads", "Google Ads", "TikTok Ads", "Snack Video", "Marketplace", "Marcom", "CRM", "CSO", "Lainnya"];
 const SATUAN_OPTIONS = ["UNIT", "PCS", "BOX", "ORANG", "BANDLE", "PACK", "BULANAN", "MINGGUAN", "HARI", "JAM", "LITER", "KG", "RIM", "SET", "VIDEO", "FOTO", "SHEETS", "DUS"];
+
+function EditableBulanIklan({ pengajuanId, bulan }: { pengajuanId: string; bulan: string }) {
+  const router = useRouter();
+  const [isEditing, setIsEditing] = useState(false);
+  const [isPending, startTransition] = useTransition();
+
+  // Correction range covers the realistic mistagging window: last, current, and next month.
+  const monthOptions = [getBulanLabel(-1), getBulanLabel(0), getBulanLabel(1)];
+  const options = monthOptions.includes(bulan) ? monthOptions : [bulan, ...monthOptions];
+
+  function handleChange(newBulan: string) {
+    setIsEditing(false);
+    if (newBulan === bulan) return;
+
+    const formData = new FormData();
+    formData.append("pengajuanId", pengajuanId);
+    formData.append("bulan", newBulan);
+
+    startTransition(async () => {
+      await updateKebutuhanIklanBulan(formData);
+      router.refresh();
+    });
+  }
+
+  if (isEditing) {
+    return (
+      <select
+        autoFocus
+        defaultValue={bulan}
+        disabled={isPending}
+        onChange={(e) => handleChange(e.target.value)}
+        onBlur={() => setIsEditing(false)}
+        className="rounded-md border border-purple-300 bg-white px-1.5 py-0.5 text-xs text-slate-900 outline-none focus:border-purple-600 focus:ring-1 focus:ring-purple-600 disabled:opacity-50"
+      >
+        {options.map((opt) => (
+          <option key={opt} value={opt}>{opt}</option>
+        ))}
+      </select>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => setIsEditing(true)}
+      title="Klik untuk ubah bulan penganggaran"
+      className={`inline-flex items-center gap-1 rounded px-1 -mx-1 text-xs text-slate-500 transition-colors hover:bg-purple-50 hover:text-purple-700 ${isPending ? "opacity-50" : ""}`}
+    >
+      {bulan}
+      <Pencil className="h-2.5 w-2.5 opacity-60" />
+    </button>
+  );
+}
 
 export function IklanTable({ items }: { items: PengajuanIklan[] }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -190,7 +244,9 @@ export function IklanTable({ items }: { items: PengajuanIklan[] }) {
                   <td className="px-4 py-4 text-center text-slate-600">{item.pic}</td>
                   <td className="min-w-[200px] whitespace-normal px-4 py-4">
                     <div className="font-semibold text-slate-900">{item.rincian}</div>
-                    <div className="mt-0.5 text-xs text-slate-500">{item.bulan}</div>
+                    <div className="mt-0.5" onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
+                      <EditableBulanIklan pengajuanId={item.id} bulan={item.bulan} />
+                    </div>
                   </td>
                   <td className="px-4 py-4 text-center font-medium text-slate-700" onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-center gap-1">

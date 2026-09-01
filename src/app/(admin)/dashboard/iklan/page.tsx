@@ -6,6 +6,7 @@ import { EditableTotalPengajuanRab } from "@/components/EditableTotalPengajuanRa
 import { ExportPDFButton } from "@/components/ExportPDFButton";
 import { IklanTable } from "@/components/IklanTable";
 import { DASHBOARD_PERMISSIONS, requireAdminPermission } from "@/lib/auth";
+import { getBulanLabel } from "@/lib/bulan";
 import { prisma } from "@/lib/prisma";
 import { getVisibleDashboardNavItems } from "@/lib/permissions";
 import Link from "next/link";
@@ -81,11 +82,7 @@ export default async function ApprovalIklanPage({
     include: { user: true },
   });
 
-  const currentBulan = (() => {
-    const date = new Date();
-    const namaBulan = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
-    return `${namaBulan[date.getMonth()]} ${date.getFullYear()}`;
-  })();
+  const currentBulan = getBulanLabel(0);
 
   const plafonBulanIni = await prisma.plafon_iklan.findUnique({
     where: { bulan: currentBulan }
