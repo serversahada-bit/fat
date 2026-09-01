@@ -104,16 +104,18 @@ export function SemuaPengajuanTable({
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [filterTipePengajuan, setFilterTipePengajuan] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
+  const [filterVerifiedFinance, setFilterVerifiedFinance] = useState("");
   const [filterTanggalDari, setFilterTanggalDari] = useState("");
   const [filterTanggalSampai, setFilterTanggalSampai] = useState("");
   const [filterSearch, setFilterSearch] = useState("");
 
-  const isFilterActive = Boolean(filterTipePengajuan || filterStatus || filterTanggalDari || filterTanggalSampai || filterSearch);
+  const isFilterActive = Boolean(filterTipePengajuan || filterStatus || filterVerifiedFinance || filterTanggalDari || filterTanggalSampai || filterSearch);
 
   const filteredItems = useMemo(() => {
     return items.filter((item) => {
       if (filterTipePengajuan && item.tipePengajuan !== filterTipePengajuan) return false;
       if (filterStatus && item.status !== filterStatus) return false;
+      if (filterVerifiedFinance && item.verifiedFinance !== filterVerifiedFinance) return false;
 
       if (filterTanggalDari || filterTanggalSampai) {
         const tanggal = formatDateInput(item.tanggalPermohonan);
@@ -132,11 +134,12 @@ export function SemuaPengajuanTable({
 
       return true;
     });
-  }, [items, filterTipePengajuan, filterStatus, filterTanggalDari, filterTanggalSampai, filterSearch]);
+  }, [items, filterTipePengajuan, filterStatus, filterVerifiedFinance, filterTanggalDari, filterTanggalSampai, filterSearch]);
 
   function resetFilters() {
     setFilterTipePengajuan("");
     setFilterStatus("");
+    setFilterVerifiedFinance("");
     setFilterTanggalDari("");
     setFilterTanggalSampai("");
     setFilterSearch("");
@@ -215,7 +218,7 @@ export function SemuaPengajuanTable({
         </div>
 
         {isFilterOpen && (
-          <div className="grid grid-cols-1 gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="grid grid-cols-1 gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2 lg:grid-cols-6">
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-semibold text-slate-600">Tipe Pengajuan</label>
               <select
@@ -240,6 +243,20 @@ export function SemuaPengajuanTable({
                 <option value="PENDING">PENDING</option>
                 <option value="APPROVED">APPROVED</option>
                 <option value="REJECTED">REJECTED</option>
+              </select>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold text-slate-600">Verified Finance</label>
+              <select
+                value={filterVerifiedFinance}
+                onChange={(e) => setFilterVerifiedFinance(e.target.value)}
+                className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20"
+              >
+                <option value="">Semua</option>
+                <option value="PENDING">PENDING</option>
+                <option value="APPROVE">APPROVE</option>
+                <option value="REJECT">REJECT</option>
               </select>
             </div>
 
@@ -275,7 +292,7 @@ export function SemuaPengajuanTable({
             </div>
 
             {isFilterActive && (
-              <div className="flex items-end sm:col-span-2 lg:col-span-5">
+              <div className="flex items-end sm:col-span-2 lg:col-span-6">
                 <button
                   type="button"
                   onClick={resetFilters}
