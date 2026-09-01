@@ -9,11 +9,10 @@ import { SettingBankTab } from "@/components/SettingBankTab";
 import { SettingPajakTab } from "@/components/SettingPajakTab";
 import { SettingNamaTab } from "@/components/SettingNamaTab";
 import { SettingCanvasTab } from "@/components/SettingCanvasTab";
-import { SettingResetTab } from "@/components/SettingResetTab";
 import { SettingFinanceScheduleTab } from "@/components/SettingFinanceScheduleTab";
 import { PasswordInput } from "@/components/PasswordInput";
 import { UserTable } from "@/components/UserTable";
-import { Users, User, Landmark, Receipt, PenTool, Database, CalendarClock } from "lucide-react";
+import { Users, User, Landmark, Receipt, PenTool, CalendarClock } from "lucide-react";
 import {
   EMPLOYEE_PERMISSION_OPTIONS,
   SUPER_ADMIN_PERMISSION_OPTIONS,
@@ -49,7 +48,6 @@ export default async function KelolaPenggunaPage({
   const editUserId = typeof params?.edit === "string" ? params.edit : null;
   const deleteUserId = typeof params?.delete === "string" ? params.delete : null;
   const roleFilter = typeof params?.role === "string" ? params.role : null;
-  const resetStatus = typeof params?.status === "string" ? params.status : null;
 
   const daftarPengguna = (await prisma.user.findMany({
     where: roleFilter ? { role: roleFilter as "SUPER_ADMIN" | "ADMIN" | "KARYAWAN" } : undefined,
@@ -85,7 +83,6 @@ export default async function KelolaPenggunaPage({
                 { tab: "pajak", label: "Setting Pajak", Icon: Receipt },
                 { tab: "canvas", label: "Setting Canvas", Icon: PenTool },
                 { tab: "finance-schedule", label: "Jadwal Finance", Icon: CalendarClock },
-                { tab: "reset", label: "Reset Data", Icon: Database },
               ].map(({ tab, label, Icon }) => (
                 <Link
                   key={tab}
@@ -421,7 +418,6 @@ export default async function KelolaPenggunaPage({
         {currentTab === "pajak" && <SettingPajakTab />}
         {currentTab === "canvas" && <SettingCanvasTab />}
         {currentTab === "finance-schedule" && <SettingFinanceScheduleTab />}
-        {currentTab === "reset" && <SettingResetTab status={resetStatus} />}
         </div>
       </div>
     </AppShell>

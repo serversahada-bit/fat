@@ -38,6 +38,10 @@ function formatCurrency(amount: number) {
   }).format(amount);
 }
 
+function formatRibuan(amount: number) {
+  return amount ? new Intl.NumberFormat("id-ID").format(amount) : "";
+}
+
 function formatDate(date: Date) {
   return new Intl.DateTimeFormat("id-ID", {
     timeZone: "Asia/Jakarta",
@@ -459,12 +463,11 @@ function EditIklanModal({ item, onClose }: { item: PengajuanIklan; onClose: () =
                 <label htmlFor="edit-hargaSatuan" className="text-sm font-semibold text-slate-700">Budget Satuan (Rp)</label>
                 <input
                   id="edit-hargaSatuan"
-                  type="number"
-                  min="0"
-                  step="1"
+                  type="text"
+                  inputMode="numeric"
                   required
-                  value={hargaSatuan}
-                  onChange={(e) => setHargaSatuan(parseInt(e.target.value) || 0)}
+                  value={formatRibuan(hargaSatuan)}
+                  onChange={(e) => setHargaSatuan(parseInt(e.target.value.replace(/\D/g, ""), 10) || 0)}
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20"
                 />
               </div>

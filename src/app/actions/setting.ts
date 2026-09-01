@@ -1,12 +1,11 @@
 "use server";
 
-import { mkdir, rm } from "node:fs/promises";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireSuperAdminPermission } from "@/lib/auth";
 import { DASHBOARD_PERMISSIONS } from "@/lib/permissions";
-import { getUploadRootDir } from "@/lib/uploads";
+
 export async function createBank(formData: FormData) {
   await requireSuperAdminPermission(DASHBOARD_PERMISSIONS.USERS);
   const nama = String(formData.get("nama") ?? "").trim();
@@ -213,57 +212,4 @@ export async function updateFinanceSubmissionSetting(formData: FormData) {
   revalidatePath("/pengajuan/bulanan");
   redirect("/dashboard/setting?tab=finance-schedule");
 }
-
-// Force reload action
-export async function resetSubmissionDatabase(formData: FormData) {
-  await requireSuperAdminPermission(DASHBOARD_PERMISSIONS.USERS);
-
-  const confirmation = String(formData.get("confirmation") ?? "").trim().toUpperCase();
-  if (confirmation !== "RESET PENGAJUAN") {
-    redirect("/dashboard/setting?tab=reset&status=confirm-error");
-  }
-
-  let isSuccess = false;
-
-  try {
-    await prisma.$transaction([
-      prisma.pengajuan.deleteMany(),
-      prisma.kebutuhan_bulanan.deleteMany(),
-      prisma.kebutuhan_iklan.deleteMany(),
-      prisma.peminjaman_kuota_iklan.deleteMany(),
-      prisma.plafon_iklan.deleteMany(),
-      prisma.semua_pengajuan.deleteMany(),
-    ]);
-
-    try {
-      const uploadRootDir = getUploadRootDir();
-      await rm(uploadRootDir, { recursive: true, force: true });
-      await mkdir(uploadRootDir, { recursive: true });
-    } catch (fsError) {
-      console.warn("Gagal menghapus folder uploads, mungkin sedang dilock oleh Windows:", fsError);
-    }
-
-    revalidatePath("/dashboard");
-    revalidatePath("/dashboard/bulanan");
-    revalidatePath("/dashboard/iklan");
-    revalidatePath("/dashboard/semua");
-    revalidatePath("/dashboard/galeri");
-    revalidatePath("/pengajuan");
-    revalidatePath("/pengajuan/bulanan");
-    revalidatePath("/pengajuan/iklan");
-    revalidatePath("/pengajuan/semua");
-    revalidatePath("/dashboard/setting");
-
-    isSuccess = true;
-  } catch (err) {
-    console.error("Action reset error:", err);
-  }
-
-  if (isSuccess) {
-    redirect("/dashboard/setting?tab=reset&status=reset-ok");
-  } else {
-    redirect("/dashboard/setting?tab=reset&status=reset-error");
-  }
-}
-
 

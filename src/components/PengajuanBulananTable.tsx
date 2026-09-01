@@ -52,6 +52,10 @@ function formatCurrency(amount: number) {
   }).format(amount);
 }
 
+function formatRibuan(amount: number) {
+  return amount ? new Intl.NumberFormat("id-ID").format(amount) : "";
+}
+
 const KATEGORI_OPTIONS = ["OPS RT", "ATK", "P3K", "DI LUAR RAB"];
 const SATUAN_OPTIONS = ["UNIT", "PCS", "BOX", "ORANG", "BANDLE", "PACK", "BULANAN", "MINGGUAN", "HARI", "JAM", "LITER", "KG", "RIM", "SET", "VIDEO", "FOTO", "SHEETS", "DUS"];
 
@@ -535,12 +539,11 @@ function EditPengajuanModal({ row, onClose }: { row: Row; onClose: () => void })
                 <label htmlFor="edit-hargaSatuan" className="text-sm font-semibold text-slate-700">Harga Satuan (Rp)</label>
                 <input
                   id="edit-hargaSatuan"
-                  type="number"
-                  min="0"
-                  step="1"
+                  type="text"
+                  inputMode="numeric"
                   required
-                  value={hargaSatuan}
-                  onChange={(e) => setHargaSatuan(parseInt(e.target.value) || 0)}
+                  value={formatRibuan(hargaSatuan)}
+                  onChange={(e) => setHargaSatuan(parseInt(e.target.value.replace(/\D/g, ""), 10) || 0)}
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20"
                 />
               </div>

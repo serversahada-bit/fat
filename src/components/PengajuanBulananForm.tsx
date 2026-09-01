@@ -12,6 +12,10 @@ function formatCurrency(amount: number) {
   }).format(amount);
 }
 
+function formatRibuan(amount: number) {
+  return amount ? new Intl.NumberFormat("id-ID").format(amount) : "";
+}
+
 export function PengajuanBulananForm({
   dbUser,
   totalSisa,
@@ -91,17 +95,16 @@ export function PengajuanBulananForm({
         </div>
         <div className="flex flex-col gap-2">
           <label htmlFor="hargaSatuan" className="text-sm font-semibold text-slate-700">Harga Satuan (Rp)</label>
-          <input 
-            id="hargaSatuan" 
-            name="hargaSatuan" 
-            type="number" 
-            min="0" 
-            step="1" 
-            placeholder="Harga" 
-            required 
-            value={hargaSatuan || ""}
-            onChange={(e) => setHargaSatuan(parseInt(e.target.value) || 0)}
-            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20" 
+          <input type="hidden" name="hargaSatuan" value={hargaSatuan || ""} />
+          <input
+            id="hargaSatuan"
+            type="text"
+            inputMode="numeric"
+            placeholder="Harga"
+            required
+            value={formatRibuan(hargaSatuan)}
+            onChange={(e) => setHargaSatuan(parseInt(e.target.value.replace(/\D/g, ""), 10) || 0)}
+            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20"
           />
         </div>
       </div>
