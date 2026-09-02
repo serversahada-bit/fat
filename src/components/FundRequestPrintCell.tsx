@@ -4,7 +4,7 @@ import jsPDF from "jspdf";
 import { useEffect, useState, useTransition } from "react";
 import { updateSemuaField } from "@/app/actions/semua_pengajuan";
 
-type FundRequestPrintData = {
+export type FundRequestPrintData = {
   id: string;
   timestamp?: string | null;
   email?: string | null;
@@ -145,10 +145,11 @@ const LEGAL_WIDTH_MM = 215.9; // 8.5in
 const LEGAL_HEIGHT_MM = 355.6; // 14in
 const TOP_MARGIN_MM = 3;
 
-async function createFundRequestPdf(data: FundRequestPrintData, tipePengajuan: string, signatures: any[] = []) {
+export async function createFundRequestPdf(data: FundRequestPrintData, tipePengajuan: string, signatures: any[] = []) {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "legal", compress: true });
   const title = tipePengajuan === "KASBON" ? "FORMULIR PERMOHONAN DANA KASBON" : "FORMULIR PERMOHONAN DANA";
-  const nominal = data.nominalRealisasi ?? data.nominalTransaksi ?? null;
+  const bankOutValue = data.bankOut ? parseFloat(data.bankOut) : null;
+  const nominal = (Number.isFinite(bankOutValue) ? bankOutValue : null) ?? data.nominalRealisasi ?? data.nominalTransaksi ?? null;
   const transaksi = normalize(data.tipeTransaksi);
   const pembayaran = normalize(data.tipePembayaran);
   const penerima = normalize(data.informasiPenerima);

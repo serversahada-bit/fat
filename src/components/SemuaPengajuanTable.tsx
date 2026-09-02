@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { Download, Filter, Trash2, X as XIcon } from "lucide-react";
+import { Download, Eye, Filter, Trash2, X as XIcon } from "lucide-react";
 import Link from "next/link";
 import { InlineEdit } from "@/components/InlineEdit";
 import { FundRequestPrintCell } from "@/components/FundRequestPrintCell";
+import { FundRequestCanvasButton } from "@/components/FundRequestCanvas";
+import { SemuaPengajuanDetailModal } from "@/components/SemuaPengajuanDetailModal";
 import { TopScrollTable } from "@/components/TopScrollTable";
 import { UploadInvoiceButton } from "@/components/UploadInvoiceButton";
 import { getUploadDisplayName, parseUploadUrls } from "@/lib/uploads";
@@ -100,6 +102,7 @@ export function SemuaPengajuanTable({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [isPending, startTransition] = useTransition();
   const headerCheckboxRef = useRef<HTMLInputElement>(null);
+  const [viewItem, setViewItem] = useState<SemuaPengajuan | null>(null);
 
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [filterTipePengajuan, setFilterTipePengajuan] = useState("");
@@ -392,7 +395,21 @@ export function SemuaPengajuanTable({
                     aria-label={`Pilih ${item.keterangan ?? item.id}`}
                   />
                 </td>
-                <td className="sticky left-10 z-10 min-w-[200px] bg-white px-4 py-3 font-medium text-slate-900 shadow-[1px_0_0_#e2e8f0] group-hover:bg-slate-50">{item.user?.name ?? item.user?.username ?? item.user?.email ?? "-"}</td>
+                <td className="sticky left-10 z-10 min-w-[200px] bg-white px-4 py-3 font-medium text-slate-900 shadow-[1px_0_0_#e2e8f0] group-hover:bg-slate-50">
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setViewItem(item)}
+                      title="Lihat detail pengajuan"
+                      className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 transition-colors hover:border-purple-300 hover:bg-purple-50 hover:text-purple-700"
+                    >
+                      <Eye className="h-3.5 w-3.5" />
+                      <span className="sr-only">Lihat detail</span>
+                    </button>
+                    <FundRequestCanvasButton item={item} pajakOptions={pajakOptions} bankOptions={bankOptions} signatures={signatures} />
+                    <span>{item.user?.name ?? item.user?.username ?? item.user?.email ?? "-"}</span>
+                  </div>
+                </td>
                 <td className="sticky left-[250px] z-10 min-w-[300px] whitespace-normal bg-white px-4 py-3 text-slate-700 shadow-[1px_0_0_#e2e8f0] group-hover:bg-slate-50"><InlineEdit id={item.id} field="keterangan" type="text" initialValue={item.keterangan} /></td>
                 <td className="px-4 py-3 text-slate-500"><InlineEdit id={item.id} field="timestamp" type="datetime-local" initialValue={formatDateTimeInput(item.timestamp)} /></td>
                 <td className="min-w-[200px] px-4 py-3 text-slate-700"><InlineEdit id={item.id} field="namaPenerima" type="text" initialValue={item.namaPenerima} /></td>
@@ -507,6 +524,16 @@ export function SemuaPengajuanTable({
           </tbody>
         </table>
       </TopScrollTable>
+      )}
+
+      {viewItem && (
+        <SemuaPengajuanDetailModal
+          item={viewItem}
+          pajakOptions={pajakOptions}
+          bankOptions={bankOptions}
+          signatures={signatures}
+          onClose={() => setViewItem(null)}
+        />
       )}
     </div>
   );

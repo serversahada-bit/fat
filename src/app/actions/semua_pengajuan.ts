@@ -286,7 +286,7 @@ export async function updateSemuaField(id: string, field: string, value: string 
     updateData.timestampVerifyManager = null;
   }
 
-  await prisma.semua_pengajuan.update({
+  const updated = await prisma.semua_pengajuan.update({
     where: { id },
     data: updateData,
   });
@@ -295,7 +295,7 @@ export async function updateSemuaField(id: string, field: string, value: string 
   revalidatePath("/pengajuan/bulanan");
   revalidatePath("/pengajuan/iklan");
   revalidatePath("/pengajuan/semua");
-  return { success: true };
+  return { success: true, nilaiPajakTerutang: updated.nilaiPajakTerutang, bankOut: updated.bankOut };
 }
 
 
