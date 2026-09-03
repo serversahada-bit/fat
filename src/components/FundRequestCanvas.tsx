@@ -504,9 +504,6 @@ function FundRequestCanvas({
                     />
                   </div>
                 </LabelRow>
-                <LabelRow label="Nominal Dibayar" width="w-32">
-                  <span className="text-sm font-bold text-emerald-700">Rp {formatNumber(computedNominal) || "0"}</span>
-                </LabelRow>
                 <div className="flex flex-col gap-1">
                   <span className="text-sm font-semibold text-slate-700">Berita Transaksi / Keterangan</span>
                   <textarea
