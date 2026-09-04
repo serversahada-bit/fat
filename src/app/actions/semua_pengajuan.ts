@@ -218,6 +218,18 @@ export async function updateSemuaPengajuanStatus(formData: FormData) {
   revalidatePath("/pengajuan/iklan");
 }
 
+// PPN divides the gross amount back down to its pre-PPN base (DPP) before the
+// income-tax percentage applies, since the gross figure already includes PPN.
+const PPN_DIVISORS: Record<string, number> = {
+  "PPN 11%": 1.11,
+  "PPN 1,1%": 1.011,
+};
+
+function computeNilaiPajakTerutang(nominalBruto: number, persentase: number, adaPpn: string | null) {
+  const divisor = adaPpn ? PPN_DIVISORS[adaPpn] ?? 1 : 1;
+  return (nominalBruto / divisor) * (persentase / 100);
+}
+
 export async function updateSemuaField(id: string, field: string, value: string | null) {
   await requireAdminPermission(DASHBOARD_PERMISSIONS.SEMUA);
 
@@ -228,23 +240,41 @@ export async function updateSemuaField(id: string, field: string, value: string 
   if (field === "jenisPajak") {
     const pengajuan = await prisma.semua_pengajuan.findUnique({
       where: { id },
-      select: { nominalTransaksi: true }
+      select: { nominalTransaksi: true, adaPpn: true }
     });
-    
+
     let taxAmount = 0;
     if (value && pengajuan?.nominalTransaksi) {
       const pajakRecord = await prisma.master_pajak.findFirst({
         where: { jenisPajak: value }
       });
       if (pajakRecord) {
-        taxAmount = pengajuan.nominalTransaksi * (pajakRecord.persentase / 100);
+        taxAmount = computeNilaiPajakTerutang(pengajuan.nominalTransaksi, pajakRecord.persentase, pengajuan.adaPpn);
       }
     }
-    
+
     updateData["jenisPajak"] = value;
     updateData["nilaiPajakTerutang"] = taxAmount === 0 && !value ? null : taxAmount;
     if (pengajuan?.nominalTransaksi) {
       updateData["bankOut"] = (pengajuan.nominalTransaksi - taxAmount).toString();
+    }
+  } else if (field === "adaPpn") {
+    const pengajuan = await prisma.semua_pengajuan.findUnique({
+      where: { id },
+      select: { nominalTransaksi: true, jenisPajak: true }
+    });
+
+    updateData["adaPpn"] = value;
+
+    if (pengajuan?.jenisPajak && pengajuan?.nominalTransaksi) {
+      const pajakRecord = await prisma.master_pajak.findFirst({
+        where: { jenisPajak: pengajuan.jenisPajak }
+      });
+      if (pajakRecord) {
+        const taxAmount = computeNilaiPajakTerutang(pengajuan.nominalTransaksi, pajakRecord.persentase, value);
+        updateData["nilaiPajakTerutang"] = taxAmount;
+        updateData["bankOut"] = (pengajuan.nominalTransaksi - taxAmount).toString();
+      }
     }
   } else if (field === "nilaiPajakTerutang") {
     const taxAmount = value ? parseFloat(value) : 0;

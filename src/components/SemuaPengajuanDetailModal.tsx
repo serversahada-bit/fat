@@ -302,7 +302,7 @@ export function SemuaPengajuanDetailModal({
               <InlineEdit id={item.id} field="bankOut" type="number" initialValue={item.bankOut} />
             </EditableField>
             <EditableField label="Ada PPN?">
-              <InlineEdit id={item.id} field="adaPpn" type="select" initialValue={item.adaPpn} options={["TIDAK", "YA"]} />
+              <InlineEdit id={item.id} field="adaPpn" type="select" initialValue={item.adaPpn} options={["NON PPN", "PPN 1,1%", "PPN 11%"]} />
             </EditableField>
             <EditableField label="Verified Tax">
               <InlineEdit id={item.id} field="verifiedTax" type="select" initialValue={item.verifiedTax} options={["APPROVE", "REJECT", "PENDING"]} />

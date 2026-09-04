@@ -108,17 +108,19 @@ export function SemuaPengajuanTable({
   const [filterTipePengajuan, setFilterTipePengajuan] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [filterVerifiedFinance, setFilterVerifiedFinance] = useState("");
+  const [filterAdaPpn, setFilterAdaPpn] = useState("");
   const [filterTanggalDari, setFilterTanggalDari] = useState("");
   const [filterTanggalSampai, setFilterTanggalSampai] = useState("");
   const [filterSearch, setFilterSearch] = useState("");
 
-  const isFilterActive = Boolean(filterTipePengajuan || filterStatus || filterVerifiedFinance || filterTanggalDari || filterTanggalSampai || filterSearch);
+  const isFilterActive = Boolean(filterTipePengajuan || filterStatus || filterVerifiedFinance || filterAdaPpn || filterTanggalDari || filterTanggalSampai || filterSearch);
 
   const filteredItems = useMemo(() => {
     return items.filter((item) => {
       if (filterTipePengajuan && item.tipePengajuan !== filterTipePengajuan) return false;
       if (filterStatus && item.status !== filterStatus) return false;
       if (filterVerifiedFinance && item.verifiedFinance !== filterVerifiedFinance) return false;
+      if (filterAdaPpn && item.adaPpn !== filterAdaPpn) return false;
 
       if (filterTanggalDari || filterTanggalSampai) {
         const tanggal = formatDateInput(item.tanggalPermohonan);
@@ -137,12 +139,13 @@ export function SemuaPengajuanTable({
 
       return true;
     });
-  }, [items, filterTipePengajuan, filterStatus, filterVerifiedFinance, filterTanggalDari, filterTanggalSampai, filterSearch]);
+  }, [items, filterTipePengajuan, filterStatus, filterVerifiedFinance, filterAdaPpn, filterTanggalDari, filterTanggalSampai, filterSearch]);
 
   function resetFilters() {
     setFilterTipePengajuan("");
     setFilterStatus("");
     setFilterVerifiedFinance("");
+    setFilterAdaPpn("");
     setFilterTanggalDari("");
     setFilterTanggalSampai("");
     setFilterSearch("");
@@ -221,7 +224,7 @@ export function SemuaPengajuanTable({
         </div>
 
         {isFilterOpen && (
-          <div className="grid grid-cols-1 gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2 lg:grid-cols-6">
+          <div className="grid grid-cols-1 gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2 lg:grid-cols-7">
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-semibold text-slate-600">Tipe Pengajuan</label>
               <select
@@ -264,6 +267,20 @@ export function SemuaPengajuanTable({
             </div>
 
             <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold text-slate-600">Ada PPN?</label>
+              <select
+                value={filterAdaPpn}
+                onChange={(e) => setFilterAdaPpn(e.target.value)}
+                className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20"
+              >
+                <option value="">Semua</option>
+                <option value="NON PPN">NON PPN</option>
+                <option value="PPN 1,1%">PPN 1,1%</option>
+                <option value="PPN 11%">PPN 11%</option>
+              </select>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
               <label className="text-xs font-semibold text-slate-600">Tanggal Permohonan Dari</label>
               <input
                 type="date"
@@ -295,7 +312,7 @@ export function SemuaPengajuanTable({
             </div>
 
             {isFilterActive && (
-              <div className="flex items-end sm:col-span-2 lg:col-span-6">
+              <div className="flex items-end sm:col-span-2 lg:col-span-7">
                 <button
                   type="button"
                   onClick={resetFilters}
@@ -505,7 +522,7 @@ export function SemuaPengajuanTable({
                 <td className="px-4 py-3 text-slate-700"><InlineEdit id={item.id} field="jenisPajak" type="select" initialValue={item.jenisPajak} options={pajakOptions} /></td>
                 <td className="px-4 py-3 text-right font-medium text-amber-700"><InlineEdit id={item.id} field="nilaiPajakTerutang" type="number" initialValue={item.nilaiPajakTerutang?.toString() ?? ""} /></td>
                 <td className="px-4 py-3 text-right font-medium text-blue-700"><InlineEdit id={item.id} field="bankOut" type="number" initialValue={item.bankOut} /></td>
-                <td className="px-4 py-3 text-slate-700"><InlineEdit id={item.id} field="adaPpn" type="select" initialValue={item.adaPpn} options={["TIDAK", "YA"]} /></td>
+                <td className="px-4 py-3 text-slate-700"><InlineEdit id={item.id} field="adaPpn" type="select" initialValue={item.adaPpn} options={["NON PPN", "PPN 1,1%", "PPN 11%"]} /></td>
                 <td className="px-4 py-3 font-semibold text-slate-700"><InlineEdit id={item.id} field="verifiedTax" type="select" initialValue={item.verifiedTax} options={["APPROVE", "REJECT", "PENDING"]} /></td>
                 <td className="px-4 py-3 text-slate-500"><InlineEdit id={item.id} field="timestampVerifyTax" type="datetime-local" initialValue={formatDateTimeInput(item.timestampVerifyTax)} /></td>
                 <td className="px-4 py-3 font-semibold text-slate-700"><InlineEdit id={item.id} field="verifiedManager" type="select" initialValue={item.verifiedManager} options={["APPROVE", "REJECT", "PENDING"]} /></td>

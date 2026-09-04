@@ -270,7 +270,7 @@ export async function createFundRequestPdf(data: FundRequestPrintData, tipePenga
   doc.text("Nominal", 162, 96);
   doc.text(":", 190, 96);
   doc.text("Rp", 195, 96);
-  drawDottedLine(doc, 203, 96.5, 82, formatNumber(nominal));
+  drawDottedLine(doc, 203, 96.5, 82, formatNumber(data.nominalTransaksi));
   doc.text("Berita Transaksi", 162, 103);
   doc.text(":", 190, 103);
   addWrappedText(doc, data.keterangan || "", 195, 103, 90, 4);
@@ -297,7 +297,7 @@ export async function createFundRequestPdf(data: FundRequestPrintData, tipePenga
   drawCheckbox(doc, 170, 124, "PPh Pasal 21", isSelected(pajak, "PASAL 21"));
   drawCheckbox(doc, 170, 133, "PPh Unifikasi", isSelected(pajak, "UNIFIKASI"));
   drawCheckbox(doc, 205, 124, "SKB", isSelected(pajak, "SKB"));
-  drawCheckbox(doc, 205, 133, "PPN", isSelected(pajak, "PPN") || normalize(data.adaPpn) === "YA");
+  drawCheckbox(doc, 205, 133, "PPN", isSelected(pajak, "PPN") || normalize(data.adaPpn).startsWith("PPN"));
 
   doc.setFont("helvetica", "bold");
   doc.text("VERIFIKASI TAX", 256, 118, { align: "center" });

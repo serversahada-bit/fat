@@ -16,6 +16,7 @@ const PEMBAYARAN_OPTIONS = [
   { label: "Virtual Account", value: "VIRTUAL ACCOUNT" },
 ];
 const PENERIMA_OPTIONS = ["PERORANGAN", "PERUSAHAAN", "PEMERINTAH"];
+const PPN_OPTIONS = ["NON PPN", "PPN 1,1%", "PPN 11%"];
 
 function normalize(value: string | null | undefined) {
   return (value ?? "").trim().toUpperCase();
@@ -68,6 +69,9 @@ type Fields = {
   nilaiPajakTerutang: string;
   adaPpn: string;
   bankPengirim: string;
+  verifiedFinance: string;
+  verifiedTax: string;
+  verifiedManager: string;
 };
 
 function buildInitialFields(item: SemuaPengajuanDetail): Fields {
@@ -88,6 +92,9 @@ function buildInitialFields(item: SemuaPengajuanDetail): Fields {
     nilaiPajakTerutang: item.nilaiPajakTerutang?.toString() ?? "",
     adaPpn: item.adaPpn ?? "",
     bankPengirim: item.bankPengirim ?? "",
+    verifiedFinance: item.verifiedFinance ?? "",
+    verifiedTax: item.verifiedTax ?? "",
+    verifiedManager: item.verifiedManager ?? "",
   };
 }
 
@@ -250,6 +257,21 @@ function FundRequestCanvas({
         setFields((prev) => ({
           ...prev,
           nilaiPajakTerutang: result.nilaiPajakTerutang != null ? String(result.nilaiPajakTerutang) : "",
+        }));
+      }
+    });
+  }
+
+  // Ada PPN changes the DPP the tax percentage is applied to (gross ÷ 1.11 or
+  // ÷ 1.011), so it also needs the server's recomputed Nilai Pajak Terutang.
+  function commitAdaPpn(value: string) {
+    setFields((prev) => ({ ...prev, adaPpn: value }));
+    startTransition(async () => {
+      const result = await updateSemuaField(item.id, "adaPpn", value || null);
+      if (result?.success) {
+        setFields((prev) => ({
+          ...prev,
+          nilaiPajakTerutang: result.nilaiPajakTerutang != null ? String(result.nilaiPajakTerutang) : prev.nilaiPajakTerutang,
         }));
       }
     });
@@ -536,7 +558,7 @@ function FundRequestCanvas({
                   </div>
                 </LabelRow>
                 <LabelRow label="Ada PPN?" width="w-32">
-                  <SelectField value={fields.adaPpn} options={["TIDAK", "YA"]} onChange={(v) => commit("adaPpn", v)} />
+                  <SelectField value={fields.adaPpn} options={PPN_OPTIONS} onChange={commitAdaPpn} />
                 </LabelRow>
               </div>
 
@@ -544,7 +566,7 @@ function FundRequestCanvas({
                 <CheckboxOption label="PPh Pasal 21" active={isSelected(pajakNormalized, "PASAL 21")} />
                 <CheckboxOption label="PPh Unifikasi" active={isSelected(pajakNormalized, "UNIFIKASI")} />
                 <CheckboxOption label="SKB" active={isSelected(pajakNormalized, "SKB")} />
-                <CheckboxOption label="PPN" active={isSelected(pajakNormalized, "PPN") || fields.adaPpn === "YA"} />
+                <CheckboxOption label="PPN" active={isSelected(pajakNormalized, "PPN") || fields.adaPpn.startsWith("PPN")} />
               </div>
 
               <ReadOnlyBox label="Verifikasi Tax (sistem)">
@@ -600,6 +622,31 @@ function FundRequestCanvas({
                 })()}
               </ReadOnlyBox>
             </div>
+
+            {/* Verifikasi Actions */}
+            <div className="grid grid-cols-1 gap-4 border-t border-slate-200 pt-3 sm:grid-cols-3">
+              <LabelRow label="Verifikasi Finance" width="w-32">
+                <SelectField
+                  value={fields.verifiedFinance}
+                  options={["PENDING", "APPROVE", "REJECT"]}
+                  onChange={(v) => commit("verifiedFinance", v)}
+                />
+              </LabelRow>
+              <LabelRow label="Verifikasi Tax" width="w-32">
+                <SelectField
+                  value={fields.verifiedTax}
+                  options={["PENDING", "APPROVE", "REJECT"]}
+                  onChange={(v) => commit("verifiedTax", v)}
+                />
+              </LabelRow>
+              <LabelRow label="Verifikasi Atasan" width="w-32">
+                <SelectField
+                  value={fields.verifiedManager}
+                  options={["PENDING", "APPROVE", "REJECT"]}
+                  onChange={(v) => commit("verifiedManager", v)}
+                />
+              </LabelRow>
+            </div>
           </div>
         </div>
 
@@ -615,10 +662,10 @@ function FundRequestCanvas({
           <button
             type="button"
             onClick={handleDownloadPdf}
-            disabled={isGenerating}
+            disabled={isGenerating || isPending}
             className="rounded-xl bg-purple-600 px-6 py-2.5 font-semibold text-white shadow-md transition-colors hover:bg-purple-700 disabled:cursor-wait disabled:opacity-60"
           >
-            {isGenerating ? "Membuat PDF..." : "Unduh PDF"}
+            {isGenerating ? "Membuat PDF..." : isPending ? "Menyimpan..." : "Unduh PDF"}
           </button>
         </div>
       </div>
