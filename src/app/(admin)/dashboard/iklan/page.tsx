@@ -25,6 +25,9 @@ type PengajuanIklan = {
   satuan: string;
   hargaSatuan: number;
   total: number;
+  totalSebelumDikurangi: number | null;
+  alasanPengurangan: string | null;
+  waktuPengurangan: Date | null;
   status: PengajuanStatus;
   catatanTambahan: string | null;
   catatanAdmin: string | null;

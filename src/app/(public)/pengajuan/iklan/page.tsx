@@ -20,6 +20,14 @@ function formatCurrency(amount: number) {
   }).format(amount);
 }
 
+function formatDate(date: Date) {
+  return new Intl.DateTimeFormat("id-ID", {
+    timeZone: "Asia/Jakarta",
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
+}
+
 function getTodayInJakarta() {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Jakarta",
@@ -452,8 +460,6 @@ export default async function PengajuanIklanPage({
                     const financeData = financeDataMap.get(item.id) ?? null;
                     const totalRealisasi = financeData?.totalRealisasi ?? 0;
                     const rowSisaBudget = (item.total ?? 0) - totalRealisasi;
-                    const itemRatio = ratioPerBulan.get(item.bulan) || 1;
-                    const itemEfisiensi = item.total * itemRatio;
 
                     return (
                       <tr key={item.id} className="transition-colors hover:bg-slate-50">
@@ -465,12 +471,26 @@ export default async function PengajuanIklanPage({
                           }`}>
                             {item.status}
                           </span>
+                          {item.totalSebelumDikurangi != null && (
+                            <div className="mt-2 rounded-lg border border-red-200 bg-red-50 px-2 py-1.5 text-left text-[11px] text-red-700">
+                              <div className="font-bold">⚠ Budget Dikurangi</div>
+                              <div className="mt-0.5">
+                                {formatCurrency(item.totalSebelumDikurangi)} → {formatCurrency(item.total)}
+                              </div>
+                              {item.alasanPengurangan && (
+                                <div className="mt-0.5 italic">&ldquo;{item.alasanPengurangan}&rdquo;</div>
+                              )}
+                              {item.waktuPengurangan && (
+                                <div className="mt-0.5 text-red-400">{formatDate(item.waktuPengurangan)}</div>
+                              )}
+                            </div>
+                          )}
                           {item.status === "APPROVED" && (
                             <div className="mt-2">
                               <FinanceSubmissionLauncher
                                 defaultTanggal={today}
                                 keterangan={item.rincian}
-                                nominal={totalSisaKuota > 0 ? totalSisaKuota : itemEfisiensi}
+                                nominal={Math.min(rowSisaBudget, totalSisaKuota)}
                                 sourceId={item.id}
                                 sourceType="iklan"
                                 submittedStatus={financeData?.status}

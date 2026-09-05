@@ -2,11 +2,11 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, TrendingDown } from "lucide-react";
 import { ApprovalDropdown } from "@/components/ApprovalDropdown";
 import { ApprovalNote } from "@/components/ApprovalNote";
 import { EditableAmount } from "@/components/EditableAmount";
-import { deleteKebutuhanIklanBulk, updateKebutuhanIklanAdminDetail, updateKebutuhanIklanBulan, updateKebutuhanIklanBulanBulk } from "@/app/actions/pengajuan";
+import { deleteKebutuhanIklanBulk, reduceKebutuhanIklanBudget, updateKebutuhanIklanAdminDetail, updateKebutuhanIklanBulan, updateKebutuhanIklanBulanBulk } from "@/app/actions/pengajuan";
 import { getBulanLabel } from "@/lib/bulan";
 
 type PengajuanStatus = "PENDING" | "APPROVED" | "REJECTED";
@@ -23,6 +23,9 @@ type PengajuanIklan = {
   satuan: string;
   hargaSatuan: number;
   total: number;
+  totalSebelumDikurangi: number | null;
+  alasanPengurangan: string | null;
+  waktuPengurangan: Date | null;
   status: PengajuanStatus;
   catatanTambahan: string | null;
   catatanAdmin: string | null;
@@ -103,6 +106,99 @@ function EditableBulanIklan({ pengajuanId, bulan }: { pengajuanId: string; bulan
       {bulan}
       <Pencil className="h-2.5 w-2.5 opacity-60" />
     </button>
+  );
+}
+
+function ReduceBudgetButton({ pengajuanId, currentTotal }: { pengajuanId: string; currentTotal: number }) {
+  const router = useRouter();
+  const [isOpen, setIsOpen] = useState(false);
+  const [isPending, startTransition] = useTransition();
+  const [jumlahPengurangan, setJumlahPengurangan] = useState(0);
+  const [alasan, setAlasan] = useState("");
+
+  const budgetSetelahDikurangi = currentTotal - jumlahPengurangan;
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+
+    const formData = new FormData();
+    formData.append("pengajuanId", pengajuanId);
+    formData.append("jumlahPengurangan", String(jumlahPengurangan));
+    formData.append("alasanPengurangan", alasan);
+
+    startTransition(async () => {
+      await reduceKebutuhanIklanBudget(formData);
+      router.refresh();
+      setIsOpen(false);
+      setJumlahPengurangan(0);
+      setAlasan("");
+    });
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setIsOpen(true)}
+        className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-600 transition-colors hover:bg-red-100"
+      >
+        <TrendingDown className="h-3 w-3" />
+        Kurangi Budget
+      </button>
+
+      {isOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm animate-fade-in" onClick={() => setIsOpen(false)}>
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-slate-900">Kurangi Budget Iklan</h3>
+            <p className="mt-1 text-sm text-slate-500">Budget saat ini: <span className="font-semibold text-slate-700">{formatCurrency(currentTotal)}</span></p>
+
+            <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-4">
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-semibold text-slate-700">Jumlah Pengurangan (Rp)</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  required
+                  value={formatRibuan(jumlahPengurangan)}
+                  onChange={(e) => setJumlahPengurangan(parseInt(e.target.value.replace(/\D/g, ""), 10) || 0)}
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-red-500 focus:ring-2 focus:ring-red-500/20"
+                />
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700">
+                Budget setelah dikurangi: {formatCurrency(budgetSetelahDikurangi)}
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-semibold text-slate-700">Alasan Pengurangan</label>
+                <textarea
+                  required
+                  rows={3}
+                  value={alasan}
+                  onChange={(e) => setAlasan(e.target.value)}
+                  placeholder="Jelaskan alasan budget dikurangi..."
+                  className="w-full resize-y rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-red-500 focus:ring-2 focus:ring-red-500/20"
+                />
+              </div>
+              <div className="flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row">
+                <button
+                  type="submit"
+                  disabled={isPending || jumlahPengurangan <= 0 || jumlahPengurangan >= currentTotal}
+                  className="w-full rounded-xl bg-red-600 px-6 py-3 font-semibold text-white shadow-md shadow-red-600/25 transition-all hover:-translate-y-0.5 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+                >
+                  {isPending ? "Menyimpan..." : "Simpan Pengurangan"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsOpen(false)}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-6 py-3 text-center font-semibold text-slate-700 transition-all hover:bg-slate-50 sm:w-auto"
+                >
+                  Batal
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -296,7 +392,17 @@ export function IklanTable({ items }: { items: PengajuanIklan[] }) {
                       <EditableAmount pengajuanId={item.id} initialValue={item.hargaSatuan} field="hargaSatuan" type="iklan" isEditable={item.status === "PENDING"} />
                     </div>
                   </td>
-                  <td className="px-4 py-4 text-right font-bold text-slate-900">{formatCurrency(item.total)}</td>
+                  <td className="px-4 py-4 text-right">
+                    <div className="font-bold text-slate-900">{formatCurrency(item.total)}</div>
+                    {item.totalSebelumDikurangi != null && (
+                      <div
+                        className="mt-0.5 text-[11px] font-semibold text-red-600"
+                        title={`Alasan: ${item.alasanPengurangan || "-"}${item.waktuPengurangan ? ` (${formatDate(item.waktuPengurangan)})` : ""}`}
+                      >
+                        Dikurangi dari {formatCurrency(item.totalSebelumDikurangi)}
+                      </div>
+                    )}
+                  </td>
                   <td className="px-4 py-4 text-center text-xs text-slate-500">{formatDate(item.createdAt)}</td>
                   <td className="min-w-[250px] px-4 py-4 text-left" onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
                     {item.catatanTambahan && (
@@ -317,6 +423,11 @@ export function IklanTable({ items }: { items: PengajuanIklan[] }) {
                       initialStatus={item.status}
                       type="iklan"
                     />
+                    {item.status === "APPROVED" && (
+                      <div className="mt-2">
+                        <ReduceBudgetButton pengajuanId={item.id} currentTotal={item.total} />
+                      </div>
+                    )}
                   </td>
                 </tr>
               );

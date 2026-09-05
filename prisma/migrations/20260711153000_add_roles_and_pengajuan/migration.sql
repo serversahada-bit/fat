@@ -18,4 +18,4 @@ CREATE TABLE `pengajuan` (
     FOREIGN KEY (`userId`) REFERENCES `user`(`id`)
     ON DELETE CASCADE
     ON UPDATE CASCADE
-);
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;

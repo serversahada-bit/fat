@@ -544,6 +544,49 @@ export async function updateKebutuhanIklanAdminDetail(formData: FormData) {
   revalidatePath("/pengajuan/iklan");
 }
 
+export async function reduceKebutuhanIklanBudget(formData: FormData) {
+  await requireAdminPermission(DASHBOARD_PERMISSIONS.IKLAN);
+
+  const pengajuanId = String(formData.get("pengajuanId") ?? "");
+  const alasanPengurangan = String(formData.get("alasanPengurangan") ?? "").trim();
+  const jumlahPengurangan = parseFloat(String(formData.get("jumlahPengurangan") ?? ""));
+
+  if (!pengajuanId || !alasanPengurangan || isNaN(jumlahPengurangan)) {
+    throw new Error("Alasan dan jumlah pengurangan wajib diisi.");
+  }
+
+  const existing = await prisma.kebutuhan_iklan.findUnique({ where: { id: pengajuanId } });
+  if (!existing) return;
+
+  if (existing.status !== "APPROVED") {
+    throw new Error("Hanya pengajuan yang sudah disetujui (APPROVED) yang bisa dikurangi budgetnya.");
+  }
+
+  if (jumlahPengurangan <= 0 || jumlahPengurangan >= existing.total) {
+    throw new Error("Jumlah pengurangan harus lebih kecil dari budget saat ini.");
+  }
+
+  const newTotal = existing.total - jumlahPengurangan;
+  const newHargaSatuan = existing.qty > 0 ? newTotal / existing.qty : existing.hargaSatuan;
+
+  await prisma.kebutuhan_iklan.update({
+    where: { id: pengajuanId },
+    data: {
+      total: newTotal,
+      hargaSatuan: newHargaSatuan,
+      // Keep the very first pre-reduction total across repeated reductions, so the
+      // employee-facing badge always shows the original approved budget, not the
+      // last reduction's starting point.
+      totalSebelumDikurangi: existing.totalSebelumDikurangi ?? existing.total,
+      alasanPengurangan,
+      waktuPengurangan: new Date(),
+    },
+  });
+
+  revalidatePath("/dashboard/iklan");
+  revalidatePath("/pengajuan/iklan");
+}
+
 export async function updateKebutuhanIklanBulan(formData: FormData) {
   await requireAdminPermission(DASHBOARD_PERMISSIONS.IKLAN);
 
