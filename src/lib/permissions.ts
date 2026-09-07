@@ -95,6 +95,12 @@ export const EMPLOYEE_PERMISSION_OPTIONS = [
     href: "/pengajuan/realisasi",
     description: "Akses rekap realisasi RAB bulanan dan iklan.",
   },
+  {
+    permission: "pengajuan.riwayat",
+    label: "Riwayat Pengajuan",
+    href: "/pengajuan/riwayat",
+    description: "Akses riwayat seluruh RAB bulanan dan iklan yang pernah diajukan.",
+  },
 ] as const;
 
 export const DASHBOARD_PERMISSIONS = {
@@ -111,6 +117,7 @@ export const EMPLOYEE_PERMISSIONS = {
   BULANAN: "pengajuan.bulanan",
   IKLAN: "pengajuan.iklan",
   REALISASI: "pengajuan.realisasi",
+  RIWAYAT: "pengajuan.riwayat",
 } as const;
 
 export type AppPermission =
