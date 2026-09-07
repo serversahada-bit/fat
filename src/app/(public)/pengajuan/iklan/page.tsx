@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic";
 
+import { Fragment } from "react";
 import { AppShell } from "@/components/AppShell";
 import { createKebutuhanIklan, createPeminjamanKuota, updatePeminjamanKuotaStatus } from "@/app/actions/pengajuan";
 import { getFinanceSubmissionSetting } from "@/app/actions/setting";
@@ -115,22 +116,44 @@ export default async function PengajuanIklanPage({
     prisma.plafon_iklan.findMany()
   ]);
 
-  const financeDataMap = new Map<string, { 
-    id: string; 
-    status: "PENDING" | "APPROVED" | "REJECTED"; 
-    isManagerApproved: boolean; 
-    tipePengajuan: string | null; 
+  type FinanceTransaction = {
+    id: string;
+    status: "PENDING" | "APPROVED" | "REJECTED";
+    isManagerApproved: boolean;
+    tipePengajuan: string | null;
+    invoice: string | null;
+    amount: number;
+  };
+
+  const financeDataMap = new Map<string, {
+    id: string;
+    status: "PENDING" | "APPROVED" | "REJECTED";
+    isManagerApproved: boolean;
+    tipePengajuan: string | null;
     invoice: string | null;
     totalRealisasi: number;
     hasPending: boolean;
+    // A single budget line can be submitted to finance more than once (partial
+    // disbursements), each with its own KASBON/NON KASBON type and invoice slot -
+    // this keeps every one of them so none get silently hidden by the summary above.
+    transactions: FinanceTransaction[];
   }>();
 
   for (const submission of financeSubmissions) {
     if (!submission.score) continue;
-    
-    const amount = submission.status !== "REJECTED" 
+
+    const amount = submission.status !== "REJECTED"
       ? (submission.nominalRealisasi ?? submission.nominalTransaksi ?? 0)
       : 0;
+
+    const transaction: FinanceTransaction = {
+      id: submission.id,
+      status: submission.status,
+      isManagerApproved: submission.verifiedManager === "APPROVE",
+      tipePengajuan: submission.tipePengajuan,
+      invoice: submission.invoice,
+      amount,
+    };
 
     const existing = financeDataMap.get(submission.score);
     if (!existing) {
@@ -141,13 +164,15 @@ export default async function PengajuanIklanPage({
         tipePengajuan: submission.tipePengajuan,
         invoice: submission.invoice,
         totalRealisasi: amount,
-        hasPending: submission.status === "PENDING" && submission.verifiedManager !== "APPROVE"
+        hasPending: submission.status === "PENDING" && submission.verifiedManager !== "APPROVE",
+        transactions: [transaction],
       });
     } else {
       financeDataMap.set(submission.score, {
         ...existing,
         totalRealisasi: existing.totalRealisasi + amount,
-        hasPending: existing.hasPending || (submission.status === "PENDING" && submission.verifiedManager !== "APPROVE")
+        hasPending: existing.hasPending || (submission.status === "PENDING" && submission.verifiedManager !== "APPROVE"),
+        transactions: [...existing.transactions, transaction],
       });
     }
   }
@@ -462,7 +487,8 @@ export default async function PengajuanIklanPage({
                     const rowSisaBudget = (item.total ?? 0) - totalRealisasi;
 
                     return (
-                      <tr key={item.id} className="transition-colors hover:bg-slate-50">
+                      <Fragment key={item.id}>
+                      <tr className="transition-colors hover:bg-slate-50">
                         <td className="px-4 py-4 text-center">
                           <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold ${
                             item.status === "PENDING" ? "bg-amber-100 text-amber-600" :
@@ -502,15 +528,6 @@ export default async function PengajuanIklanPage({
                                 todayStr={today}
                                 financeSubmissionEnabled={financeSetting.financeSubmissionEnabled}
                                 financeSubmissionStartDate={financeSubmissionStartDateStr}
-                              />
-                            </div>
-                          )}
-                          {financeData?.tipePengajuan === "KASBON" && (
-                            <div className="mt-3 flex justify-center">
-                              <UploadInvoiceButton
-                                id={financeData.id}
-                                initialValue={financeData.invoice}
-                                isKasbon={true}
                               />
                             </div>
                           )}
@@ -568,6 +585,32 @@ export default async function PengajuanIklanPage({
                           {!item.catatanTambahan && !item.catatanAdmin && <span className="text-slate-400">-</span>}
                         </td>
                       </tr>
+                      {financeData && financeData.transactions.length > 0 && (
+                        <tr key={`${item.id}-transactions`} className="bg-slate-50/60">
+                          <td colSpan={12} className="px-4 py-3">
+                            <div className="flex flex-wrap gap-3">
+                              {financeData.transactions.map((tx) => (
+                                <div key={tx.id} className="w-56 rounded-lg border border-slate-200 bg-white px-3 py-2 text-left text-[11px] shadow-sm">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <span className="font-semibold text-slate-700">{formatCurrency(tx.amount)}</span>
+                                    <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${
+                                      tx.tipePengajuan === "KASBON" ? "bg-amber-100 text-amber-700" : "bg-slate-200 text-slate-600"
+                                    }`}>
+                                      {tx.tipePengajuan || "-"}
+                                    </span>
+                                  </div>
+                                  {tx.tipePengajuan === "KASBON" && (
+                                    <div className="mt-1.5 flex justify-center">
+                                      <UploadInvoiceButton id={tx.id} initialValue={tx.invoice} isKasbon={true} />
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                      </Fragment>
                     );
                   })}
                 </tbody>

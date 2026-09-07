@@ -91,6 +91,15 @@ export default async function PengajuanBulananPage({
 
   const itemsById = new Map(daftarPengajuan.map((item) => [item.id, item]));
 
+  type FinanceTransaction = {
+    id: string;
+    status: "PENDING" | "APPROVED" | "REJECTED";
+    isManagerApproved: boolean;
+    tipePengajuan: string | null;
+    invoice: string | null;
+    amount: number;
+  };
+
   const financeDataMap = new Map<string, {
     id: string;
     status: "PENDING" | "APPROVED" | "REJECTED";
@@ -99,6 +108,10 @@ export default async function PengajuanBulananPage({
     invoice: string | null;
     totalRealisasi: number;
     hasPending: boolean;
+    // A single budget line can be submitted to finance more than once (partial
+    // disbursements), each with its own KASBON/NON KASBON type and invoice slot -
+    // this keeps every one of them so none get silently hidden by the summary above.
+    transactions: FinanceTransaction[];
   }>();
 
   for (const submission of financeSubmissions) {
@@ -120,6 +133,15 @@ export default async function PengajuanBulananPage({
       const weight = totalWeight > 0 ? (item?.total ?? 0) / totalWeight : 1 / linkedIds.length;
       const allocatedAmount = amount * weight;
 
+      const transaction: FinanceTransaction = {
+        id: submission.id,
+        status: submission.status,
+        isManagerApproved: submission.verifiedManager === "APPROVE",
+        tipePengajuan: submission.tipePengajuan,
+        invoice: submission.invoice,
+        amount: allocatedAmount,
+      };
+
       const existing = financeDataMap.get(id);
       if (!existing) {
         financeDataMap.set(id, {
@@ -129,11 +151,13 @@ export default async function PengajuanBulananPage({
           tipePengajuan: submission.tipePengajuan,
           invoice: submission.invoice,
           totalRealisasi: allocatedAmount,
-          hasPending: submission.status === "PENDING" && submission.verifiedManager !== "APPROVE"
+          hasPending: submission.status === "PENDING" && submission.verifiedManager !== "APPROVE",
+          transactions: [transaction],
         });
       } else {
         financeDataMap.set(id, {
           ...existing,
+          transactions: [...existing.transactions, transaction],
           totalRealisasi: existing.totalRealisasi + allocatedAmount,
           hasPending: existing.hasPending || (submission.status === "PENDING" && submission.verifiedManager !== "APPROVE")
         });

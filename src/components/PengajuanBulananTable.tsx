@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { Fragment, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2, Send } from "lucide-react";
 import { FinanceSubmissionLauncher } from "@/components/FinanceSubmissionLauncher";
@@ -27,6 +27,15 @@ type PengajuanBulanan = {
   catatanAdmin: string | null;
 };
 
+type FinanceTransaction = {
+  id: string;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  isManagerApproved: boolean;
+  tipePengajuan: string | null;
+  invoice: string | null;
+  amount: number;
+};
+
 type FinanceData = {
   id: string;
   status: "PENDING" | "APPROVED" | "REJECTED";
@@ -35,6 +44,7 @@ type FinanceData = {
   invoice: string | null;
   totalRealisasi: number;
   hasPending: boolean;
+  transactions: FinanceTransaction[];
 } | null;
 
 type Row = {
@@ -229,8 +239,8 @@ export function PengajuanBulananTable({
               const isSelectable = item.status === "PENDING" || item.status === "APPROVED";
               const isEditableByDoubleClick = item.status === "PENDING";
               return (
+                <Fragment key={item.id}>
                 <tr
-                  key={item.id}
                   onDoubleClick={() => handleRowDoubleClick({ item, financeData, totalRealisasi, sisaBudget })}
                   title={isEditableByDoubleClick ? "Klik 2 kali untuk edit" : undefined}
                   className={`transition-colors hover:bg-slate-50 ${isEditableByDoubleClick ? "cursor-pointer" : ""} ${selected.has(item.id) ? "bg-purple-50/60" : ""}`}
@@ -317,15 +327,6 @@ export function PengajuanBulananTable({
                         </div>
                       )}
                     </div>
-                    {financeData?.tipePengajuan === "KASBON" && (
-                      <div className="mt-3 flex justify-center">
-                        <UploadInvoiceButton
-                          id={financeData.id}
-                          initialValue={financeData.invoice}
-                          isKasbon={true}
-                        />
-                      </div>
-                    )}
                   </td>
                   <td className="min-w-[200px] whitespace-normal px-4 py-4 text-xs">
                     {item.catatanTambahan && (
@@ -341,7 +342,34 @@ export function PengajuanBulananTable({
                     {!item.catatanTambahan && !item.catatanAdmin && <span className="text-slate-400">-</span>}
                   </td>
                 </tr>
-              );
+                {financeData && financeData.transactions.length > 0 && (
+                  <tr key={`${item.id}-transactions`} className="bg-slate-50/60">
+                    <td />
+                    <td colSpan={13} className="px-4 py-3">
+                      <div className="flex flex-wrap gap-3">
+                        {financeData.transactions.map((tx) => (
+                          <div key={tx.id} className="w-56 rounded-lg border border-slate-200 bg-white px-3 py-2 text-left text-[11px] shadow-sm">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-semibold text-slate-700">{formatCurrency(tx.amount)}</span>
+                              <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${
+                                tx.tipePengajuan === "KASBON" ? "bg-amber-100 text-amber-700" : "bg-slate-200 text-slate-600"
+                              }`}>
+                                {tx.tipePengajuan || "-"}
+                              </span>
+                            </div>
+                            {tx.tipePengajuan === "KASBON" && (
+                              <div className="mt-1.5 flex justify-center">
+                                <UploadInvoiceButton id={tx.id} initialValue={tx.invoice} isKasbon={true} />
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
+            );
             })}
           </tbody>
         </table>
