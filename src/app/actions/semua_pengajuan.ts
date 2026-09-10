@@ -225,9 +225,16 @@ const PPN_DIVISORS: Record<string, number> = {
   "PPN 1,1%": 1.011,
 };
 
+// Rounds to the nearest rupiah, but unlike Math.round(), an exact .5 rounds
+// down instead of up (e.g. 399.5 -> 399, 399.6 -> 400).
+function roundRupiah(value: number) {
+  const floor = Math.floor(value);
+  return value - floor > 0.5 ? floor + 1 : floor;
+}
+
 function computeNilaiPajakTerutang(nominalBruto: number, persentase: number, adaPpn: string | null) {
   const divisor = adaPpn ? PPN_DIVISORS[adaPpn] ?? 1 : 1;
-  return (nominalBruto / divisor) * (persentase / 100);
+  return roundRupiah((nominalBruto / divisor) * (persentase / 100));
 }
 
 export async function updateSemuaField(id: string, field: string, value: string | null) {
@@ -256,7 +263,7 @@ export async function updateSemuaField(id: string, field: string, value: string 
     updateData["jenisPajak"] = value;
     updateData["nilaiPajakTerutang"] = taxAmount === 0 && !value ? null : taxAmount;
     if (pengajuan?.nominalTransaksi) {
-      updateData["bankOut"] = (pengajuan.nominalTransaksi - taxAmount).toString();
+      updateData["bankOut"] = roundRupiah(pengajuan.nominalTransaksi - taxAmount).toString();
     }
   } else if (field === "adaPpn") {
     const pengajuan = await prisma.semua_pengajuan.findUnique({
@@ -273,19 +280,19 @@ export async function updateSemuaField(id: string, field: string, value: string 
       if (pajakRecord) {
         const taxAmount = computeNilaiPajakTerutang(pengajuan.nominalTransaksi, pajakRecord.persentase, value);
         updateData["nilaiPajakTerutang"] = taxAmount;
-        updateData["bankOut"] = (pengajuan.nominalTransaksi - taxAmount).toString();
+        updateData["bankOut"] = roundRupiah(pengajuan.nominalTransaksi - taxAmount).toString();
       }
     }
   } else if (field === "nilaiPajakTerutang") {
-    const taxAmount = value ? parseFloat(value) : 0;
+    const taxAmount = value ? roundRupiah(parseFloat(value)) : 0;
     updateData["nilaiPajakTerutang"] = taxAmount === 0 && !value ? null : taxAmount;
-    
+
     const pengajuan = await prisma.semua_pengajuan.findUnique({
       where: { id },
       select: { nominalTransaksi: true }
     });
     if (pengajuan?.nominalTransaksi) {
-      updateData["bankOut"] = (pengajuan.nominalTransaksi - taxAmount).toString();
+      updateData["bankOut"] = roundRupiah(pengajuan.nominalTransaksi - taxAmount).toString();
     }
   } else if (field.startsWith("tanggal") || field.startsWith("timestamp")) {
     // datetime-local values ("YYYY-MM-DDTHH:mm") have no timezone suffix, so the JS

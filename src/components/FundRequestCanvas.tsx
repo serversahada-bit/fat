@@ -2,10 +2,12 @@
 
 import { useState, useTransition } from "react";
 import { createPortal } from "react-dom";
-import { Printer, X as XIcon } from "lucide-react";
+import Link from "next/link";
+import { Download, Printer, X as XIcon } from "lucide-react";
 import { updateSemuaField } from "@/app/actions/semua_pengajuan";
 import { createFundRequestPdf, type FundRequestPrintData } from "@/components/FundRequestPrintCell";
 import type { SemuaPengajuanDetail } from "@/components/SemuaPengajuanDetailModal";
+import { getUploadDisplayName, parseUploadUrls } from "@/lib/uploads";
 
 const TIPE_PENGAJUAN_OPTIONS = ["KASBON", "NON KASBON"];
 const TRANSAKSI_OPTIONS = ["TAGIHAN", "OVERBOOKING", "IKLAN", "OPERASIONAL", "PAJAK", "PAYROLL"];
@@ -563,7 +565,7 @@ function FundRequestCanvas({
               </div>
 
               <div className="hidden flex-col justify-center gap-2 md:flex">
-                <CheckboxOption label="PPh Pasal 21" active={isSelected(pajakNormalized, "PASAL 21")} />
+                <CheckboxOption label="PPh Pasal 21" active={isSelected(pajakNormalized, "21")} />
                 <CheckboxOption label="PPh Unifikasi" active={isSelected(pajakNormalized, "UNIFIKASI")} />
                 <CheckboxOption label="SKB" active={isSelected(pajakNormalized, "SKB")} />
                 <CheckboxOption label="PPN" active={isSelected(pajakNormalized, "PPN") || fields.adaPpn.startsWith("PPN")} />
@@ -622,6 +624,28 @@ function FundRequestCanvas({
                 })()}
               </ReadOnlyBox>
             </div>
+
+            {/* Lampiran Finance (preview only, not part of the printed PDF) */}
+            {parseUploadUrls(item.lampiranFinance).length > 0 && (
+              <div className="flex flex-wrap items-center gap-3 border-t border-slate-200 pt-3 text-sm">
+                <span className="font-semibold text-slate-600">Lampiran Pendukung (Finance):</span>
+                {parseUploadUrls(item.lampiranFinance).map((url, index) => (
+                  <span key={url} className="inline-flex items-center gap-1">
+                    <Link className="text-blue-600 hover:underline" href={url} rel="noreferrer" target="_blank">
+                      Lampiran {index + 1}
+                    </Link>
+                    <a
+                      href={url}
+                      download={getUploadDisplayName(url)}
+                      title={`Unduh ${getUploadDisplayName(url)}`}
+                      className="rounded p-0.5 text-slate-400 transition-colors hover:bg-blue-50 hover:text-blue-600"
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                    </a>
+                  </span>
+                ))}
+              </div>
+            )}
 
             {/* Verifikasi Actions */}
             <div className="grid grid-cols-1 gap-4 border-t border-slate-200 pt-3 sm:grid-cols-3">

@@ -294,7 +294,7 @@ export async function createFundRequestPdf(data: FundRequestPrintData, tipePenga
   drawLabelLine(doc, "NIK / NPWP", "", 12, 128, 36, 110);
   drawLabelLine(doc, "Nilai Pajak Terutang", formatNumber(data.nilaiPajakTerutang), 12, 137, 36, 110);
 
-  drawCheckbox(doc, 170, 124, "PPh Pasal 21", isSelected(pajak, "PASAL 21"));
+  drawCheckbox(doc, 170, 124, "PPh Pasal 21", isSelected(pajak, "21"));
   drawCheckbox(doc, 170, 133, "PPh Unifikasi", isSelected(pajak, "UNIFIKASI"));
   drawCheckbox(doc, 205, 124, "SKB", isSelected(pajak, "SKB"));
   drawCheckbox(doc, 205, 133, "PPN", isSelected(pajak, "PPN") || normalize(data.adaPpn).startsWith("PPN"));
@@ -386,6 +386,13 @@ export function FundRequestPrintCell({ id, initialValue, data, signatures = [] }
   const [pdfDocument, setPdfDocument] = useState<jsPDF | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const canPrint = TYPE_OPTIONS.includes(value);
+
+  // The page polls for fresh data every second (see PollingProvider), so this
+  // keeps the dropdown in sync when tipePengajuan is changed elsewhere (e.g.
+  // from the FundRequestCanvas print modal) instead of only reading it once.
+  useEffect(() => {
+    setValue(initialValue || "");
+  }, [initialValue]);
 
   useEffect(() => {
     return () => {
