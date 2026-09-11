@@ -625,25 +625,50 @@ function FundRequestCanvas({
               </ReadOnlyBox>
             </div>
 
-            {/* Lampiran Finance (preview only, not part of the printed PDF) */}
-            {parseUploadUrls(item.lampiranFinance).length > 0 && (
-              <div className="flex flex-wrap items-center gap-3 border-t border-slate-200 pt-3 text-sm">
-                <span className="font-semibold text-slate-600">Lampiran Pendukung (Finance):</span>
-                {parseUploadUrls(item.lampiranFinance).map((url, index) => (
-                  <span key={url} className="inline-flex items-center gap-1">
-                    <Link className="text-blue-600 hover:underline" href={url} rel="noreferrer" target="_blank">
-                      Lampiran {index + 1}
-                    </Link>
-                    <a
-                      href={url}
-                      download={getUploadDisplayName(url)}
-                      title={`Unduh ${getUploadDisplayName(url)}`}
-                      className="rounded p-0.5 text-slate-400 transition-colors hover:bg-blue-50 hover:text-blue-600"
-                    >
-                      <Download className="h-3.5 w-3.5" />
-                    </a>
-                  </span>
-                ))}
+            {/* Lampiran Finance & Tax (preview only, not part of the printed PDF) */}
+            {(parseUploadUrls(item.lampiranFinance).length > 0 || parseUploadUrls(item.lampiranTax).length > 0) && (
+              <div className="grid grid-cols-1 gap-3 border-t border-slate-200 pt-3 text-sm sm:grid-cols-2">
+                {parseUploadUrls(item.lampiranFinance).length > 0 && (
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="font-semibold text-slate-600">Lampiran Pendukung (Finance):</span>
+                    {parseUploadUrls(item.lampiranFinance).map((url, index) => (
+                      <span key={url} className="inline-flex items-center gap-1">
+                        <Link className="text-blue-600 hover:underline" href={url} rel="noreferrer" target="_blank">
+                          Lampiran {index + 1}
+                        </Link>
+                        <a
+                          href={url}
+                          download={getUploadDisplayName(url)}
+                          title={`Unduh ${getUploadDisplayName(url)}`}
+                          className="rounded p-0.5 text-slate-400 transition-colors hover:bg-blue-50 hover:text-blue-600"
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                        </a>
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {parseUploadUrls(item.lampiranTax).length > 0 && (
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="font-semibold text-slate-600">Lampiran Pendukung (Tax):</span>
+                    {parseUploadUrls(item.lampiranTax).map((url, index) => (
+                      <span key={url} className="inline-flex items-center gap-1">
+                        <Link className="text-blue-600 hover:underline" href={url} rel="noreferrer" target="_blank">
+                          Lampiran {index + 1}
+                        </Link>
+                        <a
+                          href={url}
+                          download={getUploadDisplayName(url)}
+                          title={`Unduh ${getUploadDisplayName(url)}`}
+                          className="rounded p-0.5 text-slate-400 transition-colors hover:bg-blue-50 hover:text-blue-600"
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                        </a>
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
