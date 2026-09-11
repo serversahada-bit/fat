@@ -1,0 +1,626 @@
+export const dynamic = "force-dynamic";
+
+import { Fragment } from "react";
+import { AppShell } from "@/components/AppShell";
+import { createKebutuhanIklan, createPeminjamanKuota, updatePeminjamanKuotaStatus } from "@/app/actions/pengajuan";
+import { getFinanceSubmissionSetting } from "@/app/actions/setting";
+import { FinanceSubmissionLauncher } from "@/components/FinanceSubmissionLauncher";
+import { UploadInvoiceButton } from "@/components/UploadInvoiceButton";
+import { EditableAmount } from "@/components/EditableAmount";
+import { CurrencyInput } from "@/components/CurrencyInput";
+import { EMPLOYEE_PERMISSIONS, requireEmployeePermission } from "@/lib/auth";
+import { getVisibleEmployeeNavItems } from "@/lib/permissions";
+import { prisma } from "@/lib/prisma";
+import Link from "next/link";
+
+function formatCurrency(amount: number) {
+  return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    minimumFractionDigits: 0,
+  }).format(amount);
+}
+
+function formatDate(date: Date) {
+  return new Intl.DateTimeFormat("id-ID", {
+    timeZone: "Asia/Jakarta",
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
+}
+
+function getTodayInJakarta() {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Jakarta",
+  }).format(new Date());
+}
+
+export default async function PengajuanIklanPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  const session = await requireEmployeePermission(EMPLOYEE_PERMISSIONS.IKLAN);
+  const navItems = getVisibleEmployeeNavItems(session.user);
+  const dbUser = await prisma.user.findUnique({ where: { id: session.user.id } });
+  const today = getTodayInJakarta();
+  const financeSetting = await getFinanceSubmissionSetting();
+  const financeSubmissionStartDateStr = financeSetting.financeSubmissionStartDate
+    ? new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" }).format(financeSetting.financeSubmissionStartDate)
+    : null;
+
+  
+  const params = await searchParams;
+  const isFormOpen = params?.baru === "true";
+  const currentTab = typeof params?.tab === "string" ? params.tab : "Semua";
+
+  const statusFilter =
+    currentTab === "Pending" ? "PENDING" :
+    currentTab === "Disetujui" ? "APPROVED" :
+    currentTab === "Ditolak" ? "REJECTED" : undefined;
+
+  const whereClause: { userId: string; status?: "PENDING" | "APPROVED" | "REJECTED" } = {
+    userId: session.user.id,
+  };
+
+  if (statusFilter) {
+    whereClause.status = statusFilter;
+  }
+
+  const [daftarPengajuan, financeSubmissions, pinjamanMasuk, pinjamanKeluar, daftarAdvertiser, globalApprovedKebutuhan, semuaPlafon] = await Promise.all([
+    prisma.kebutuhan_iklan.findMany({
+      where: whereClause,
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.semua_pengajuan.findMany({
+      where: {
+        userId: session.user.id,
+        column17: "iklan",
+        score: { not: null },
+      },
+      select: {
+        id: true,
+        score: true,
+        status: true,
+        tanggalRealisasi: true,
+        createdAt: true,
+        verifiedManager: true,
+        tipePengajuan: true,
+        invoice: true,
+        nominalRealisasi: true,
+        nominalTransaksi: true,
+      },
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.peminjaman_kuota_iklan.findMany({
+      where: { peminjamId: session.user.id },
+      include: { pemberiPinjaman: true }
+    }),
+    prisma.peminjaman_kuota_iklan.findMany({
+      where: { pemberiPinjamanId: session.user.id },
+      include: { peminjam: true }
+    }),
+    prisma.user.findMany({
+      where: { 
+        role: "KARYAWAN", 
+        id: { not: session.user.id },
+        permissions: { contains: "pengajuan.iklan" }
+      },
+      select: { id: true, name: true, username: true }
+    }),
+    prisma.kebutuhan_iklan.groupBy({
+      by: ['bulan'],
+      where: { status: 'APPROVED' },
+      _sum: { total: true }
+    }),
+    prisma.plafon_iklan.findMany()
+  ]);
+
+  type FinanceTransaction = {
+    id: string;
+    status: "PENDING" | "APPROVED" | "REJECTED";
+    isManagerApproved: boolean;
+    tipePengajuan: string | null;
+    invoice: string | null;
+    amount: number;
+  };
+
+  const financeDataMap = new Map<string, {
+    id: string;
+    status: "PENDING" | "APPROVED" | "REJECTED";
+    isManagerApproved: boolean;
+    tipePengajuan: string | null;
+    invoice: string | null;
+    totalRealisasi: number;
+    hasPending: boolean;
+    // A single budget line can be submitted to finance more than once (partial
+    // disbursements), each with its own KASBON/NON KASBON type and invoice slot -
+    // this keeps every one of them so none get silently hidden by the summary above.
+    transactions: FinanceTransaction[];
+  }>();
+
+  for (const submission of financeSubmissions) {
+    if (!submission.score) continue;
+
+    const amount = submission.status !== "REJECTED"
+      ? (submission.nominalRealisasi ?? submission.nominalTransaksi ?? 0)
+      : 0;
+
+    const transaction: FinanceTransaction = {
+      id: submission.id,
+      status: submission.status,
+      isManagerApproved: submission.verifiedManager === "APPROVE",
+      tipePengajuan: submission.tipePengajuan,
+      invoice: submission.invoice,
+      amount,
+    };
+
+    const existing = financeDataMap.get(submission.score);
+    if (!existing) {
+      financeDataMap.set(submission.score, {
+        id: submission.id,
+        status: submission.status,
+        isManagerApproved: submission.verifiedManager === "APPROVE",
+        tipePengajuan: submission.tipePengajuan,
+        invoice: submission.invoice,
+        totalRealisasi: amount,
+        hasPending: submission.status === "PENDING" && submission.verifiedManager !== "APPROVE",
+        transactions: [transaction],
+      });
+    } else {
+      financeDataMap.set(submission.score, {
+        ...existing,
+        totalRealisasi: existing.totalRealisasi + amount,
+        hasPending: existing.hasPending || (submission.status === "PENDING" && submission.verifiedManager !== "APPROVE"),
+        transactions: [...existing.transactions, transaction],
+      });
+    }
+  }
+
+  const ratioPerBulan = new Map<string, number>();
+  for (const group of globalApprovedKebutuhan) {
+    const bulan = group.bulan;
+    const globalTotal = group._sum.total || 0;
+    const plafon = semuaPlafon.find(p => p.bulan === bulan);
+    
+    if (plafon && plafon.totalPlafon > 0 && globalTotal > 0) {
+      ratioPerBulan.set(bulan, plafon.totalPlafon / globalTotal);
+    } else {
+      ratioPerBulan.set(bulan, 1);
+    }
+  }
+
+  let totalRabAsli = 0;
+  let totalRabEfisiensi = 0;
+  daftarPengajuan.forEach(p => { 
+    if (p.status === "APPROVED") {
+      totalRabAsli += p.total;
+      const ratio = ratioPerBulan.get(p.bulan) || 1;
+      totalRabEfisiensi += p.total * ratio;
+    }
+  });
+  
+  let totalRealisasiKeseluruhan = 0;
+  for (const [_, data] of Array.from(financeDataMap.entries())) {
+     totalRealisasiKeseluruhan += data.totalRealisasi;
+  }
+
+  let totalPinjamanMasuk = 0;
+  pinjamanMasuk.forEach(p => { if (p.status === "DISETUJUI") totalPinjamanMasuk += p.nominal; });
+
+  let totalPinjamanKeluar = 0;
+  pinjamanKeluar.forEach(p => { if (p.status === "DISETUJUI") totalPinjamanKeluar += p.nominal; });
+
+  const totalSisaKuota = totalRabEfisiensi + totalPinjamanMasuk - totalRealisasiKeseluruhan - totalPinjamanKeluar;
+
+  const headerActions = (
+    <div className="flex w-full items-center gap-3 md:w-auto">
+      <Link href="/pengajuan/iklan?baru=true" className="gradient-brand whitespace-nowrap rounded-full px-5 py-2.5 font-medium text-white shadow-md shadow-purple-600/25 transition-transform hover:-translate-y-0.5">
+        + Tambah Pengajuan
+      </Link>
+      <button className="hidden whitespace-nowrap rounded-lg border border-slate-200 bg-white px-4 py-2.5 font-medium text-slate-700 transition-colors hover:bg-slate-50 sm:block">
+        Import
+      </button>
+      <button className="hidden items-center whitespace-nowrap rounded-lg border border-slate-200 bg-white px-4 py-2.5 font-medium text-slate-700 transition-colors hover:bg-slate-50 sm:flex">
+        Ekspor <span className="ml-2 opacity-60">v</span>
+      </button>
+    </div>
+  );
+
+  return (
+    <AppShell user={session.user}
+      title="Data Kebutuhan Iklan"
+      subtitle="Kelola informasi, persetujuan, dan pencatatan kebutuhan iklan di sini."
+      navItems={navItems}
+      headerActions={headerActions}
+    >
+      <div className="grid grid-cols-1 gap-6">
+        {isFormOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm animate-fade-in sm:p-6">
+            <div className="relative flex max-h-[90vh] w-full max-w-3xl flex-col rounded-2xl bg-white shadow-2xl">
+              <div className="flex shrink-0 items-start justify-between border-b border-slate-100 p-6 md:p-8">
+                <div>
+                  <h2 className="mb-1 text-xl font-bold text-slate-900 md:text-2xl">Buat Pengajuan Iklan Baru</h2>
+                  <p className="text-sm text-slate-500">Isi rincian kampanye, jumlah, dan budget untuk kebutuhan iklan.</p>
+                </div>
+                <Link href="/pengajuan/iklan" className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600">
+                  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                </Link>
+              </div>
+
+              <div className="custom-scrollbar overflow-y-auto p-6 md:p-8">
+                <form action={createKebutuhanIklan} className="flex flex-col gap-6">
+                  <div className="grid grid-cols-1 gap-5 md:grid-cols-2 md:gap-6">
+                    <div className="flex flex-col gap-2 md:col-span-2">
+                      <label htmlFor="platform" className="text-sm font-semibold text-slate-700">Platform Iklan</label>
+                      <select id="platform" name="platform" required className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20">
+                        <option value="Meta Ads">Meta Ads (Facebook/Instagram)</option>
+                        <option value="Google Ads">Google Ads</option>
+                        <option value="TikTok Ads">TikTok Ads</option>
+                        <option value="Snack Video">Snack Video</option>
+                        <option value="Marketplace">Marketplace</option>
+                        <option value="Marcom">Marcom</option>
+                        <option value="CRM">CRM</option>
+                        <option value="CSO">CSO</option>
+                        <option value="Lainnya">Lainnya</option>
+                      </select>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <label htmlFor="divisi" className="text-sm font-semibold text-slate-700">Divisi</label>
+                      <input id="divisi" name="divisi" type="text" value={dbUser?.divisi || "Belum diatur"} readOnly className="w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm text-slate-500 outline-none" />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <label htmlFor="pic" className="text-sm font-semibold text-slate-700">PIC</label>
+                      <input id="pic" name="pic" type="text" value={dbUser?.name || dbUser?.username || "Tanpa Nama"} readOnly className="w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm text-slate-500 outline-none" />
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <label htmlFor="rincian" className="text-sm font-semibold text-slate-700">Rincian / Kampanye</label>
+                    <textarea
+                      id="rincian"
+                      name="rincian"
+                      placeholder="Nama kampanye atau uraian iklan"
+                      rows={3}
+                      required
+                      className="w-full resize-y rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-5 sm:grid-cols-3 md:gap-6">
+                    <div className="flex flex-col gap-2">
+                      <label htmlFor="qty" className="text-sm font-semibold text-slate-700">QTY / Durasi</label>
+                      <input id="qty" name="qty" type="number" min="1" placeholder="Jumlah" required className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20" />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <label htmlFor="satuan" className="text-sm font-semibold text-slate-700">Satuan</label>
+                      <select id="satuan" name="satuan" required className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20">
+                        <option value="">Pilih Satuan...</option>
+                        {['HARI', 'MINGGUAN', 'BULANAN', 'KAMAPANYE', 'VIDEO', 'FOTO', 'LAINNYA'].map((satuan) => (
+                          <option key={satuan} value={satuan}>{satuan}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <label htmlFor="hargaSatuan" className="text-sm font-semibold text-slate-700">Budget Satuan (Rp)</label>
+                      <CurrencyInput id="hargaSatuan" name="hargaSatuan" placeholder="Budget" required className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20" />
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <label htmlFor="catatanTambahan" className="text-sm font-semibold text-slate-700">Catatan Tambahan (Opsional)</label>
+                    <textarea
+                      id="catatanTambahan"
+                      name="catatanTambahan"
+                      placeholder="Target audiens atau keterangan tambahan"
+                      rows={2}
+                      className="w-full resize-y rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row">
+                    <button type="submit" className="gradient-brand w-full rounded-xl px-6 py-3 font-semibold text-white shadow-md shadow-purple-600/25 transition-all hover:-translate-y-0.5 active:scale-[0.98] sm:w-auto">
+                      Simpan Kebutuhan Iklan
+                    </button>
+                    <Link href="/pengajuan/iklan" className="w-full rounded-xl border border-slate-200 bg-white px-6 py-3 text-center font-semibold text-slate-700 transition-all hover:bg-slate-50 sm:w-auto">
+                      Batal
+                    </Link>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="shadow-card rounded-2xl border border-slate-200 bg-white p-6">
+            <h3 className="text-lg font-bold text-slate-800 mb-4">Ringkasan Kuota Anda</h3>
+            <div className="space-y-3">
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-500">Total RAB Asli (Disetujui Admin):</span>
+                <span className="font-semibold text-slate-700">{formatCurrency(totalRabAsli)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-purple-600 font-medium">Budget Efisiensi (Plafon):</span>
+                <span className="font-bold text-purple-700">{formatCurrency(totalRabEfisiensi)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-500">Total Telah Dicairkan:</span>
+                <span className="font-semibold text-red-500">-{formatCurrency(totalRealisasiKeseluruhan)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-500">Pinjaman Masuk (Disetujui):</span>
+                <span className="font-semibold text-emerald-600">+{formatCurrency(totalPinjamanMasuk)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-500">Pinjaman Keluar (Disetujui):</span>
+                <span className="font-semibold text-amber-600">-{formatCurrency(totalPinjamanKeluar)}</span>
+              </div>
+              <div className="pt-3 border-t border-slate-100 flex justify-between">
+                <span className="font-bold text-slate-800">SISA KUOTA TOTAL:</span>
+                <span className="font-bold text-purple-700 text-lg">{formatCurrency(totalSisaKuota)}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="shadow-card rounded-2xl border border-slate-200 bg-white p-6">
+            <h3 className="text-lg font-bold text-slate-800 mb-4">Minta Kuota Tambahan</h3>
+            <form action={createPeminjamanKuota} className="flex flex-col gap-3">
+              <div>
+                <label className="text-xs font-semibold text-slate-600">Pilih Advertiser</label>
+                <select name="pemberiPinjamanId" required className="w-full mt-1 rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                  <option value="">Pilih...</option>
+                  {daftarAdvertiser.map(adv => (
+                    <option key={adv.id} value={adv.id}>{adv.name || adv.username}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-slate-600">Nominal (Rp)</label>
+                <CurrencyInput name="nominal" required className="w-full mt-1 rounded-lg border border-slate-200 px-3 py-2 text-sm" placeholder="Contoh: 2000000"/>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-slate-600">Alasan</label>
+                <input type="text" name="alasan" className="w-full mt-1 rounded-lg border border-slate-200 px-3 py-2 text-sm" placeholder="Opsional"/>
+              </div>
+              <button type="submit" className="gradient-brand text-white font-semibold py-2 rounded-lg text-sm hover:opacity-90 mt-2">Kirim Permintaan</button>
+            </form>
+          </div>
+
+          {(pinjamanMasuk.length > 0 || pinjamanKeluar.length > 0) && (
+            <div className="md:col-span-2 shadow-card rounded-2xl border border-slate-200 bg-white p-6">
+               <h3 className="text-lg font-bold text-slate-800 mb-4">Riwayat Pinjaman Kuota</h3>
+               <div className="overflow-x-auto">
+                 <table className="w-full text-sm text-left">
+                   <thead className="bg-slate-50 text-slate-600">
+                     <tr>
+                       <th className="px-4 py-2">Tipe</th>
+                       <th className="px-4 py-2">Dengan Siapa</th>
+                       <th className="px-4 py-2">Nominal</th>
+                       <th className="px-4 py-2">Alasan</th>
+                       <th className="px-4 py-2">Status</th>
+                       <th className="px-4 py-2">Aksi</th>
+                     </tr>
+                   </thead>
+                   <tbody>
+                     {pinjamanKeluar.map(p => (
+                       <tr key={p.id} className="border-t border-slate-100">
+                         <td className="px-4 py-3"><span className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs font-bold">DARI TEMAN MINTA KE SAYA</span></td>
+                         <td className="px-4 py-3">{p.peminjam?.name || p.peminjam?.username}</td>
+                         <td className="px-4 py-3 font-semibold">{formatCurrency(p.nominal)}</td>
+                         <td className="px-4 py-3">{p.alasan || "-"}</td>
+                         <td className="px-4 py-3 font-bold">{p.status}</td>
+                         <td className="px-4 py-3">
+                           {p.status === "PENDING_IZIN" && (
+                             <form action={updatePeminjamanKuotaStatus} className="flex gap-2">
+                               <input type="hidden" name="pinjamanId" value={p.id} />
+                               <button type="submit" name="status" value="DISETUJUI" className="bg-emerald-500 text-white px-3 py-1 rounded text-xs font-semibold hover:bg-emerald-600 transition-colors">Setujui</button>
+                               <button type="submit" name="status" value="DITOLAK" className="bg-red-500 text-white px-3 py-1 rounded text-xs font-semibold hover:bg-red-600 transition-colors">Tolak</button>
+                             </form>
+                           )}
+                         </td>
+                       </tr>
+                     ))}
+                     {pinjamanMasuk.map(p => (
+                       <tr key={p.id} className="border-t border-slate-100">
+                         <td className="px-4 py-3"><span className="bg-purple-100 text-purple-700 px-2 py-1 rounded text-xs font-bold">SAYA MINTA KE TEMAN</span></td>
+                         <td className="px-4 py-3">{p.pemberiPinjaman?.name || p.pemberiPinjaman?.username}</td>
+                         <td className="px-4 py-3 font-semibold">{formatCurrency(p.nominal)}</td>
+                         <td className="px-4 py-3">{p.alasan || "-"}</td>
+                         <td className="px-4 py-3 font-bold">{p.status}</td>
+                         <td className="px-4 py-3 text-slate-400">Menunggu</td>
+                       </tr>
+                     ))}
+                   </tbody>
+                 </table>
+               </div>
+            </div>
+          )}
+        </section>
+
+        <section className="shadow-card rounded-2xl border border-slate-200 bg-white p-4 md:p-8">
+          <div className="mb-6 flex flex-col justify-between gap-4 border-b border-slate-100 pb-6 sm:flex-row sm:items-center">
+            <div className="flex flex-wrap items-center gap-2">
+              {["Semua", "Pending", "Disetujui", "Ditolak"].map((tab) => (
+                <Link
+                  key={tab}
+                  href={`/pengajuan/iklan?tab=${tab}`}
+                  className={`rounded-full px-4 py-2 text-sm font-semibold transition-all ${currentTab === tab ? "gradient-brand text-white shadow-md shadow-purple-600/25" : "bg-transparent text-slate-500 hover:bg-slate-100"}`}
+                >
+                  {tab}
+                </Link>
+              ))}
+            </div>
+            <button className="hidden items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 sm:flex">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+              Filter
+            </button>
+          </div>
+
+          {daftarPengajuan.length === 0 ? (
+            <div className="py-12 text-center text-slate-500">
+              Belum ada data kebutuhan iklan.
+            </div>
+          ) : (
+            <div className="custom-scrollbar overflow-x-auto rounded-xl border border-slate-200">
+              <table className="min-w-[1000px] w-full border-collapse whitespace-nowrap text-left">
+                <thead className="gradient-brand text-xs uppercase tracking-wider text-white">
+                  <tr>
+                    <th className="px-4 py-4 text-center font-semibold">STATUS</th>
+                    <th className="px-4 py-4 text-center font-semibold">PLATFORM</th>
+                    <th className="px-4 py-4 text-center font-semibold">DIVISI</th>
+                    <th className="px-4 py-4 text-center font-semibold">PIC</th>
+                    <th className="px-4 py-4 font-semibold">KAMPANYE / URAIAN</th>
+                    <th className="px-4 py-4 text-center font-semibold">QTY</th>
+                    <th className="px-4 py-4 text-center font-semibold">SATUAN</th>
+                    <th className="px-4 py-4 text-right font-semibold">BUDGET SATUAN (Rp)</th>
+                    <th className="px-4 py-4 text-right font-semibold">TOTAL BUDGET (RAB)</th>
+                    <th className="px-4 py-4 text-right font-semibold">REALISASI (Rp)</th>
+                    <th className="px-4 py-4 text-right font-semibold">SISA BUDGET (Rp)</th>
+                    <th className="px-4 py-4 font-semibold">CATATAN</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-sm">
+                  {daftarPengajuan.map((item: any) => {
+                    const financeData = financeDataMap.get(item.id) ?? null;
+                    const totalRealisasi = financeData?.totalRealisasi ?? 0;
+                    const rowSisaBudget = (item.total ?? 0) - totalRealisasi;
+
+                    return (
+                      <Fragment key={item.id}>
+                      <tr className="transition-colors hover:bg-slate-50">
+                        <td className="px-4 py-4 text-center">
+                          <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold ${
+                            item.status === "PENDING" ? "bg-amber-100 text-amber-600" :
+                            item.status === "APPROVED" ? "bg-emerald-100 text-emerald-600" :
+                            "bg-red-100 text-red-600"
+                          }`}>
+                            {item.status}
+                          </span>
+                          {item.totalSebelumDikurangi != null && (
+                            <div className="mt-2 rounded-lg border border-red-200 bg-red-50 px-2 py-1.5 text-left text-[11px] text-red-700">
+                              <div className="font-bold">⚠ Budget Dikurangi</div>
+                              <div className="mt-0.5">
+                                {formatCurrency(item.totalSebelumDikurangi)} → {formatCurrency(item.total)}
+                              </div>
+                              {item.alasanPengurangan && (
+                                <div className="mt-0.5 italic">&ldquo;{item.alasanPengurangan}&rdquo;</div>
+                              )}
+                              {item.waktuPengurangan && (
+                                <div className="mt-0.5 text-red-400">{formatDate(item.waktuPengurangan)}</div>
+                              )}
+                            </div>
+                          )}
+                          {item.status === "APPROVED" && (
+                            <div className="mt-2">
+                              <FinanceSubmissionLauncher
+                                defaultTanggal={today}
+                                keterangan={item.rincian}
+                                nominal={Math.min(rowSisaBudget, totalSisaKuota)}
+                                sourceId={item.id}
+                                sourceType="iklan"
+                                submittedStatus={financeData?.status}
+                                isManagerApproved={financeData?.isManagerApproved}
+                                userEmail={session.user.email ?? ""}
+                                userName={session.user.name ?? ""}
+                                sisaBudget={totalSisaKuota}
+                                hasPending={financeData?.hasPending ?? false}
+                                todayStr={today}
+                                financeSubmissionEnabled={financeSetting.financeSubmissionEnabled}
+                                financeSubmissionStartDate={financeSubmissionStartDateStr}
+                              />
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-4 py-4 text-center">
+                          <span className="rounded-md bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                            {item.platform || "Meta Ads"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4 text-center text-slate-600">{item.divisi}</td>
+                        <td className="px-4 py-4 text-center text-slate-600">{item.pic}</td>
+                        <td className="min-w-[200px] whitespace-normal px-4 py-4">
+                          <div className="font-semibold text-slate-900">{item.rincian}</div>
+                          <div className="mt-0.5 text-xs text-slate-500">{item.bulan}</div>
+                        </td>
+                        <td className="px-4 py-4 text-center font-medium text-slate-700">
+                          <div className="flex items-center justify-center gap-1">
+                            <EditableAmount
+                              pengajuanId={item.id}
+                              initialValue={item.qty}
+                              field="qty"
+                              type="iklan"
+                              role="employee"
+                              isEditable={item.status === "PENDING"}
+                            />
+                          </div>
+                        </td>
+                        <td className="px-4 py-4 text-center text-slate-600">{item.satuan}</td>
+                        <td className="px-4 py-4 text-right text-slate-600">
+                          <div className="flex justify-end">
+                            <EditableAmount
+                              pengajuanId={item.id}
+                              initialValue={item.hargaSatuan}
+                              field="hargaSatuan"
+                              type="iklan"
+                              role="employee"
+                              isEditable={item.status === "PENDING"}
+                            />
+                          </div>
+                        </td>
+                        <td className="px-4 py-4 text-right font-bold text-slate-900">{formatCurrency(item.total)}</td>
+                        <td className="px-4 py-4 text-right font-semibold text-emerald-600">{formatCurrency(totalRealisasi)}</td>
+                        <td className="px-4 py-4 text-right font-bold text-amber-600">{formatCurrency(rowSisaBudget)}</td>
+                        <td className="min-w-[200px] whitespace-normal px-4 py-4 text-xs">
+                          {item.catatanTambahan && (
+                            <div className="mb-1.5">
+                              <span className="font-semibold text-slate-700">Karyawan:</span> <span className="text-slate-600">{item.catatanTambahan}</span>
+                            </div>
+                          )}
+                          {item.catatanAdmin && (
+                            <div className={`mt-1.5 border-t border-slate-100 pt-1.5 ${!item.catatanTambahan ? "border-none mt-0 pt-0" : ""}`}>
+                              <span className="font-semibold text-purple-700">Admin:</span> <span className="font-medium text-purple-600">{item.catatanAdmin}</span>
+                            </div>
+                          )}
+                          {!item.catatanTambahan && !item.catatanAdmin && <span className="text-slate-400">-</span>}
+                        </td>
+                      </tr>
+                      {financeData && financeData.transactions.length > 0 && (
+                        <tr key={`${item.id}-transactions`} className="bg-slate-50/60">
+                          <td colSpan={12} className="px-4 py-3">
+                            <div className="flex flex-wrap gap-3">
+                              {financeData.transactions.map((tx) => (
+                                <div key={tx.id} className="w-56 rounded-lg border border-slate-200 bg-white px-3 py-2 text-left text-[11px] shadow-sm">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <span className="font-semibold text-slate-700">{formatCurrency(tx.amount)}</span>
+                                    <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${
+                                      tx.tipePengajuan === "KASBON" ? "bg-amber-100 text-amber-700" : "bg-slate-200 text-slate-600"
+                                    }`}>
+                                      {tx.tipePengajuan || "-"}
+                                    </span>
+                                  </div>
+                                  {tx.tipePengajuan === "KASBON" && (
+                                    <div className="mt-1.5 flex justify-center">
+                                      <UploadInvoiceButton id={tx.id} initialValue={tx.invoice} isKasbon={true} />
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                      </Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      </div>
+    </AppShell>
+  );
+}
+
+

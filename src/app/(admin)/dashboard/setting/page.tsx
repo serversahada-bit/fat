@@ -1,0 +1,427 @@
+export const dynamic = "force-dynamic";
+
+import { AppShell } from "@/components/AppShell";
+import { createUser, deleteUser, updateUser } from "@/app/actions/user";
+import { DASHBOARD_PERMISSIONS, requireSuperAdminPermission } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import Link from "next/link";
+import { SettingBankTab } from "@/components/SettingBankTab";
+import { SettingPajakTab } from "@/components/SettingPajakTab";
+import { SettingNamaTab } from "@/components/SettingNamaTab";
+import { SettingCanvasTab } from "@/components/SettingCanvasTab";
+import { SettingFinanceScheduleTab } from "@/components/SettingFinanceScheduleTab";
+import { PasswordInput } from "@/components/PasswordInput";
+import { UserTable } from "@/components/UserTable";
+import { Users, User, Landmark, Receipt, PenTool, CalendarClock } from "lucide-react";
+import {
+  EMPLOYEE_PERMISSION_OPTIONS,
+  SUPER_ADMIN_PERMISSION_OPTIONS,
+  ADMIN_PERMISSION_OPTIONS,
+  getEditablePermissionOptions,
+  getPermissionModeFromStoredValue,
+  getVisibleDashboardNavItems,
+  parsePermissionString,
+} from "@/lib/permissions";
+
+type UserListItem = {
+  id: string;
+  name: string | null;
+  username: string | null;
+  email: string | null;
+  divisi: string | null;
+  role: "SUPER_ADMIN" | "ADMIN" | "KARYAWAN";
+  permissions: string | null;
+  createdAt: Date;
+};
+
+export default async function KelolaPenggunaPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  const session = await requireSuperAdminPermission(DASHBOARD_PERMISSIONS.USERS);
+  const navItems = getVisibleDashboardNavItems(session.user);
+
+  const params = await searchParams;
+  const currentTab = typeof params?.tab === "string" ? params.tab : "user";
+  const isFormOpen = params?.baru === "true";
+  const editUserId = typeof params?.edit === "string" ? params.edit : null;
+  const deleteUserId = typeof params?.delete === "string" ? params.delete : null;
+  const roleFilter = typeof params?.role === "string" ? params.role : null;
+
+  const daftarPengguna = (await prisma.user.findMany({
+    where: roleFilter ? { role: roleFilter as "SUPER_ADMIN" | "ADMIN" | "KARYAWAN" } : undefined,
+    orderBy: { createdAt: "desc" },
+  })) as unknown as UserListItem[];
+
+  const selectedUser = editUserId
+    ? daftarPengguna.find((user) => user.id === editUserId) ?? null
+    : null;
+  const deleteTargetUser = deleteUserId
+    ? daftarPengguna.find((user) => user.id === deleteUserId) ?? null
+    : null;
+
+  const selectedPermissions = selectedUser
+    ? parsePermissionString(selectedUser.permissions)
+    : [];
+  const selectedPermissionMode = selectedUser
+    ? getPermissionModeFromStoredValue(selectedUser.role, selectedUser.permissions)
+    : "custom";
+  return (
+    <AppShell user={session.user}
+      navItems={navItems}
+    >
+      <div className="flex flex-col gap-6">
+        {/* Topbar Navigasi Setting */}
+        <nav className="w-full shrink-0">
+          <div className="shadow-card custom-scrollbar overflow-x-auto rounded-2xl border border-slate-200 bg-white p-2">
+            <div className="flex min-w-max gap-2">
+              {[
+                { tab: "user", label: "User", Icon: Users },
+                { tab: "nama", label: "Nama", Icon: User },
+                { tab: "bank", label: "Setting Bank", Icon: Landmark },
+                { tab: "pajak", label: "Setting Pajak", Icon: Receipt },
+                { tab: "canvas", label: "Setting Canvas", Icon: PenTool },
+                { tab: "finance-schedule", label: "Jadwal Finance", Icon: CalendarClock },
+              ].map(({ tab, label, Icon }) => (
+                <Link
+                  key={tab}
+                  href={`/dashboard/setting?tab=${tab}`}
+                  className={`flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold transition-all ${currentTab === tab ? "gradient-brand text-white shadow-md shadow-purple-600/25" : "text-slate-600 hover:bg-purple-50 hover:text-purple-700"}`}
+                >
+                  <Icon className="h-4 w-4" strokeWidth={2.25} />
+                  <span>{label}</span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </nav>
+
+        {/* Main Content Area */}
+        <div className="grid min-w-0 flex-1 grid-cols-1 gap-6">
+        {currentTab === "user" && (
+          <>
+          {isFormOpen && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm animate-fade-in sm:p-6">
+            <div className="relative flex max-h-[90vh] w-full max-w-3xl flex-col rounded-2xl bg-white shadow-2xl">
+              <div className="flex shrink-0 items-start justify-between border-b border-slate-100 p-6 md:p-8">
+                <div>
+                  <h2 className="mb-1 text-xl font-bold text-slate-900 md:text-2xl">Tambah User Baru</h2>
+                  <p className="text-sm text-slate-500">Buat akun dan tentukan menu yang diizinkan sesuai role user.</p>
+                </div>
+                <Link href="/dashboard/setting" className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600">
+                  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                </Link>
+              </div>
+
+              <div className="custom-scrollbar overflow-y-auto p-6 md:p-8">
+                <form action={createUser} className="flex flex-col gap-6">
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <div className="flex flex-col gap-2">
+                      <label htmlFor="name" className="text-sm font-semibold text-slate-700">Nama Lengkap</label>
+                      <input id="name" name="name" type="text" placeholder="Masukkan nama lengkap" required className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20" />
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                      <label htmlFor="divisi" className="text-sm font-semibold text-slate-700">Divisi</label>
+                      <select id="divisi" name="divisi" required className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20">
+                        <option value="">Pilih Divisi...</option>
+                        {['Human Capital', 'Marketing Branding', 'Advertaiser', 'FAT', 'Marketplace', 'Fulfillment', 'IT', 'Marcom', 'Meta', 'CRM', 'CSO', 'Tiktok'].map((div) => (
+                          <option key={div} value={div}>{div}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                      <label htmlFor="email" className="text-sm font-semibold text-slate-700">Email</label>
+                      <input id="email" name="email" type="email" placeholder="Alamat email" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20" />
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                      <label htmlFor="username" className="text-sm font-semibold text-slate-700">Username</label>
+                      <input id="username" name="username" type="text" placeholder="Username untuk login" required className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20" />
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                      <label htmlFor="password" className="text-sm font-semibold text-slate-700">Password</label>
+                      <PasswordInput id="password" name="password" placeholder="Minimal 6 karakter" required minLength={6} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20" />
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <label htmlFor="role" className="text-sm font-semibold text-slate-700">Role</label>
+                    <select id="role" name="role" defaultValue="KARYAWAN" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20 md:max-w-xs">
+                      <option value="KARYAWAN">Karyawan</option>
+                      <option value="ADMIN">Admin</option>
+                      <option value="SUPER_ADMIN">Super Admin</option>
+                    </select>
+                    <p className="text-xs text-slate-500">Super admin bisa melihat menu dashboard termasuk Setting. Admin tidak memiliki akses ke Setting. Karyawan memakai menu area `/pengajuan`.</p>
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-5">
+                    <div className="mb-4">
+                      <h3 className="text-sm font-bold text-slate-900">Izin Menu Super Admin</h3>
+                      <p className="mt-1 text-xs text-slate-500">Dipakai saat role user adalah SUPER_ADMIN. Menu Setting hanya tersedia di role ini.</p>
+                    </div>
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                      {SUPER_ADMIN_PERMISSION_OPTIONS.map((item) => (
+                        <label key={item.permission} className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
+                          <input type="checkbox" name="permissions" value={item.permission} className="mt-1 h-4 w-4 rounded border-slate-300 text-purple-600 focus:ring-purple-500" />
+                          <span>
+                            <span className="block font-semibold text-slate-900">{item.label}</span>
+                            <span className="mt-1 block text-xs text-slate-500">{item.description}</span>
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-5">
+                    <div className="mb-4">
+                      <h3 className="text-sm font-bold text-slate-900">Izin Menu Admin</h3>
+                      <p className="mt-1 text-xs text-slate-500">Dipakai saat role user adalah ADMIN. Role ini hanya untuk menu operasional dashboard dan tidak bisa membuka Setting.</p>
+                    </div>
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                      {ADMIN_PERMISSION_OPTIONS.map((item) => (
+                        <label key={item.permission} className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
+                          <input type="checkbox" name="permissions" value={item.permission} className="mt-1 h-4 w-4 rounded border-slate-300 text-purple-600 focus:ring-purple-500" />
+                          <span>
+                            <span className="block font-semibold text-slate-900">{item.label}</span>
+                            <span className="mt-1 block text-xs text-slate-500">{item.description}</span>
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-5">
+                    <div className="mb-4">
+                      <h3 className="text-sm font-bold text-slate-900">Izin Menu Karyawan</h3>
+                      <p className="mt-1 text-xs text-slate-500">Dipakai saat role user adalah KARYAWAN. Checklist ini menentukan menu yang tampil di area `/pengajuan`.</p>
+                    </div>
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                      {EMPLOYEE_PERMISSION_OPTIONS.map((item) => (
+                        <label key={item.permission} className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
+                          <input type="checkbox" name="permissions" value={item.permission} className="mt-1 h-4 w-4 rounded border-slate-300 text-purple-600 focus:ring-purple-500" />
+                          <span>
+                            <span className="block font-semibold text-slate-900">{item.label}</span>
+                            <span className="mt-1 block text-xs text-slate-500">{item.description}</span>
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row">
+                    <button type="submit" className="gradient-brand w-full rounded-xl px-6 py-3 font-semibold text-white shadow-md shadow-purple-600/25 transition-all hover:-translate-y-0.5 active:scale-[0.98] sm:w-auto">
+                      Buat Akun
+                    </button>
+                    <Link href="/dashboard/setting" className="w-full rounded-xl border border-slate-200 bg-white px-6 py-3 text-center font-semibold text-slate-700 transition-all hover:bg-slate-50 sm:w-auto">
+                      Batal
+                    </Link>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {selectedUser && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm animate-fade-in sm:p-6">
+            <div className="relative flex max-h-[90vh] w-full max-w-4xl flex-col rounded-2xl bg-white shadow-2xl">
+              <div className="flex shrink-0 items-start justify-between border-b border-slate-100 p-6 md:p-8">
+                <div>
+                  <h2 className="mb-1 text-xl font-bold text-slate-900 md:text-2xl">Edit User</h2>
+                  <p className="text-sm text-slate-500">
+                    Ubah profil, role, dan akses menu untuk {selectedUser.name || selectedUser.username || "user ini"}.
+                  </p>
+                </div>
+                <Link href="/dashboard/setting" className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600">
+                  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                </Link>
+              </div>
+
+              <div className="custom-scrollbar overflow-y-auto p-6 md:p-8">
+                <form action={updateUser} className="flex flex-col gap-6">
+                  <input type="hidden" name="userId" value={selectedUser.id} />
+
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <div className="flex flex-col gap-2">
+                      <label htmlFor="edit-name" className="text-sm font-semibold text-slate-700">Nama Lengkap</label>
+                      <input id="edit-name" name="name" type="text" defaultValue={selectedUser.name || ""} placeholder="Masukkan nama lengkap" required className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20" />
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                      <label htmlFor="edit-divisi" className="text-sm font-semibold text-slate-700">Divisi</label>
+                      <select id="edit-divisi" name="divisi" defaultValue={selectedUser.divisi || ""} required className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20">
+                        <option value="">Pilih Divisi...</option>
+                        {['Human Capital', 'Marketing Branding', 'Advertaiser', 'FAT', 'Marketplace', 'Fulfillment', 'IT', 'Marcom', 'Meta', 'CRM', 'CSO', 'Tiktok'].map((div) => (
+                          <option key={div} value={div}>{div}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                      <label htmlFor="edit-email" className="text-sm font-semibold text-slate-700">Email</label>
+                      <input id="edit-email" name="email" type="email" defaultValue={selectedUser.email || ""} placeholder="Alamat email" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20" />
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                      <label htmlFor="edit-username" className="text-sm font-semibold text-slate-700">Username</label>
+                      <input id="edit-username" name="username" type="text" defaultValue={selectedUser.username || ""} placeholder="Username untuk login" required className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20" />
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                      <label htmlFor="edit-password" className="text-sm font-semibold text-slate-700">Password Baru</label>
+                      <PasswordInput id="edit-password" name="password" placeholder="Kosongkan jika tidak diubah" minLength={6} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20" />
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <label htmlFor="edit-role" className="text-sm font-semibold text-slate-700">Role</label>
+                    <select id="edit-role" name="role" defaultValue={selectedUser.role} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20 md:max-w-xs">
+                      <option value="KARYAWAN">Karyawan</option>
+                      <option value="ADMIN">Admin</option>
+                      <option value="SUPER_ADMIN">Super Admin</option>
+                    </select>
+                    <p className="text-xs text-slate-500">Ubah role user jika diperlukan. Izin menu di bawah otomatis digunakan sesuai role yang terpilih.</p>
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-5">
+                    <div className="mb-4">
+                      <h3 className="text-sm font-bold text-slate-900">Izin Menu Super Admin</h3>
+                      <p className="mt-1 text-xs text-slate-500">Dipakai saat role user adalah SUPER_ADMIN. Menu Setting hanya tersedia di role ini.</p>
+                    </div>
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                      {SUPER_ADMIN_PERMISSION_OPTIONS.map((item) => (
+                        <label key={item.permission} className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
+                          <input type="checkbox" name="permissions" value={item.permission} defaultChecked={selectedPermissions.includes(item.permission)} className="mt-1 h-4 w-4 rounded border-slate-300 text-purple-600 focus:ring-purple-500" />
+                          <span>
+                            <span className="block font-semibold text-slate-900">{item.label}</span>
+                            <span className="mt-1 block text-xs text-slate-500">{item.description}</span>
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-5">
+                    <div className="mb-4">
+                      <h3 className="text-sm font-bold text-slate-900">Izin Menu Admin</h3>
+                      <p className="mt-1 text-xs text-slate-500">Dipakai saat role user adalah ADMIN. Role ini hanya untuk menu operasional dashboard dan tidak bisa membuka Setting.</p>
+                    </div>
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                      {ADMIN_PERMISSION_OPTIONS.map((item) => (
+                        <label key={item.permission} className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
+                          <input type="checkbox" name="permissions" value={item.permission} defaultChecked={selectedPermissions.includes(item.permission)} className="mt-1 h-4 w-4 rounded border-slate-300 text-purple-600 focus:ring-purple-500" />
+                          <span>
+                            <span className="block font-semibold text-slate-900">{item.label}</span>
+                            <span className="mt-1 block text-xs text-slate-500">{item.description}</span>
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-5">
+                    <div className="mb-4">
+                      <h3 className="text-sm font-bold text-slate-900">Izin Menu Karyawan</h3>
+                      <p className="mt-1 text-xs text-slate-500">Dipakai saat role user adalah KARYAWAN. Checklist ini menentukan menu yang tampil di area `/pengajuan`.</p>
+                    </div>
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                      {EMPLOYEE_PERMISSION_OPTIONS.map((item) => (
+                        <label key={item.permission} className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
+                          <input type="checkbox" name="permissions" value={item.permission} defaultChecked={selectedPermissions.includes(item.permission)} className="mt-1 h-4 w-4 rounded border-slate-300 text-purple-600 focus:ring-purple-500" />
+                          <span>
+                            <span className="block font-semibold text-slate-900">{item.label}</span>
+                            <span className="mt-1 block text-xs text-slate-500">{item.description}</span>
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-xs text-slate-500">
+                      Perubahan ini langsung mempengaruhi sistem setelah disimpan.
+                    </p>
+                    <div className="flex flex-col gap-3 sm:flex-row">
+                      <Link href="/dashboard/setting" className="w-full rounded-xl border border-slate-200 bg-white px-6 py-3 text-center font-semibold text-slate-700 transition-all hover:bg-slate-50 sm:w-auto">
+                        Batal
+                      </Link>
+                      <button type="submit" className="w-full rounded-xl bg-slate-900 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-slate-800 sm:w-auto">
+                        Simpan Perubahan
+                      </button>
+                    </div>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {deleteTargetUser && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm animate-fade-in sm:p-6">
+            <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl">
+              <div className="border-b border-slate-100 p-6 md:p-8">
+                <h2 className="text-xl font-bold text-slate-900 md:text-2xl">Konfirmasi Hapus User</h2>
+                <p className="mt-2 text-sm text-slate-500">
+                  Apakah Anda yakin ingin menghapus user <span className="font-semibold text-slate-900">{deleteTargetUser.name || deleteTargetUser.username || "ini"}</span>?
+                </p>
+              </div>
+              <div className="p-6 md:p-8">
+                <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  Tindakan ini akan menghapus akun user dan tidak bisa dibatalkan.
+                </div>
+                <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
+                  <Link
+                    href="/dashboard/setting"
+                    className="w-full rounded-xl border border-slate-200 bg-white px-6 py-3 text-center font-semibold text-slate-700 transition-all hover:bg-slate-50 sm:w-auto"
+                  >
+                    Batal
+                  </Link>
+                  <form action={deleteUser} className="w-full sm:w-auto">
+                    <input type="hidden" name="userId" value={deleteTargetUser.id} />
+                    <button
+                      type="submit"
+                      className="w-full rounded-xl bg-red-600 px-6 py-3 font-semibold text-white transition-colors hover:bg-red-700 sm:w-auto"
+                    >
+                      Ya, Hapus User
+                    </button>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <section className="shadow-card rounded-2xl border border-slate-200 bg-white p-4 md:p-8">
+          <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-6 gap-4">
+            <div>
+              <h2 className="mb-1 text-xl font-bold text-slate-900">Daftar User & Hak Akses Menu</h2>
+              <p className="text-sm text-slate-500">Super admin mengatur menu dashboard termasuk Setting. Admin hanya mengatur menu operasional dashboard. Karyawan mengatur menu di area pengajuan.</p>
+            </div>
+            <Link
+              href="/dashboard/setting?baru=true"
+              className="gradient-brand inline-block shrink-0 whitespace-nowrap rounded-full px-5 py-2.5 font-medium text-white shadow-md shadow-purple-600/25 transition-transform hover:-translate-y-0.5"
+            >
+              + Tambah User
+            </Link>
+          </div>
+
+          <UserTable users={daftarPengguna} currentUserId={session.user.id} />
+        </section>
+          </>
+        )}
+        {currentTab === "nama" && <SettingNamaTab />}
+        {currentTab === "bank" && <SettingBankTab />}
+        {currentTab === "pajak" && <SettingPajakTab />}
+        {currentTab === "canvas" && <SettingCanvasTab />}
+        {currentTab === "finance-schedule" && <SettingFinanceScheduleTab />}
+        </div>
+      </div>
+    </AppShell>
+  );
+}
+
+

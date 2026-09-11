@@ -1,0 +1,327 @@
+generator client {
+  provider   = "prisma-client-js"
+  engineType = "binary"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  KARYAWAN
+}
+
+enum PengajuanStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model account {
+  id                String   @id
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?  @db.Text
+  access_token      String?  @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?  @db.Text
+  session_state     String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime
+  user              user     @relation(fields: [userId], references: [id], onDelete: Cascade, map: "Account_userId_fkey")
+
+  @@unique([provider, providerAccountId], map: "Account_provider_providerAccountId_key")
+  @@index([userId], map: "Account_userId_fkey")
+}
+
+model session {
+  id           String   @id
+  sessionToken String   @unique(map: "Session_sessionToken_key")
+  userId       String
+  expires      DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime
+  user         user     @relation(fields: [userId], references: [id], onDelete: Cascade, map: "Session_userId_fkey")
+
+  @@index([userId], map: "Session_userId_fkey")
+}
+
+model user {
+  id                        String                      @id
+  name                      String?
+  email                     String?                     @unique(map: "User_email_key")
+  emailVerified             DateTime?
+  image                     String?
+  password                  String?
+  role                      UserRole                    @default(KARYAWAN)
+  createdAt                 DateTime                    @default(now())
+  updatedAt                 DateTime
+  username                  String?                     @unique(map: "User_username_key")
+  divisi                    String?
+  permissions               String?                     @db.Text
+  account                   account[]
+  pengajuan                 pengajuan[]
+  session                   session[]
+  kebutuhan_bulanan         kebutuhan_bulanan[]
+  kebutuhan_iklan           kebutuhan_iklan[]
+  semua_pengajuan           semua_pengajuan[]
+  pinjamanKeluar            peminjaman_kuota_iklan[]    @relation("PeminjamKuota")
+  pinjamanMasuk             peminjaman_kuota_iklan[]    @relation("PemberiPinjaman")
+  realisasi_manual          realisasi_manual[]
+  catatan_realisasi_pribadi catatan_realisasi_pribadi[]
+}
+
+model pengajuan {
+  id           String          @id @default(cuid())
+  userId       String
+  judul        String
+  deskripsi    String          @db.Text
+  status       PengajuanStatus @default(PENDING)
+  catatanAdmin String?         @db.Text
+  diprosesPada DateTime?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  user         user            @relation(fields: [userId], references: [id], onDelete: Cascade, map: "Pengajuan_userId_fkey")
+
+  @@index([status], map: "Pengajuan_status_idx")
+  @@index([userId], map: "Pengajuan_userId_idx")
+}
+
+model verificationtoken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token], map: "VerificationToken_identifier_token_key")
+}
+
+model kebutuhan_bulanan {
+  id              String          @id @default(cuid())
+  userId          String
+  bulan           String
+  kategori        String          @default("OPS RT")
+  divisi          String
+  pic             String
+  rincian         String          @db.Text
+  qty             Int
+  satuan          String
+  hargaSatuan     Float
+  total           Float
+  status          PengajuanStatus @default(PENDING)
+  catatanTambahan String?         @db.Text
+  catatanAdmin    String?         @db.Text
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  user            user            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([userId])
+}
+
+model kebutuhan_iklan {
+  id                    String          @id @default(cuid())
+  userId                String
+  bulan                 String
+  platform              String          @default("Meta Ads")
+  divisi                String
+  pic                   String
+  rincian               String          @db.Text
+  qty                   Int
+  satuan                String
+  hargaSatuan           Float
+  total                 Float
+  totalSebelumDikurangi Float?
+  alasanPengurangan     String?         @db.Text
+  waktuPengurangan      DateTime?
+  status                PengajuanStatus @default(PENDING)
+  catatanTambahan       String?         @db.Text
+  catatanAdmin          String?         @db.Text
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+  user                  user            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plafonId              String?
+  plafon                plafon_iklan?   @relation(fields: [plafonId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([userId])
+  @@index([plafonId])
+}
+
+model semua_pengajuan {
+  id                     String          @id @default(cuid())
+  userId                 String
+  timestamp              DateTime        @default(now())
+  email                  String?
+  tanggalPermohonan      DateTime?
+  tipeTransaksi          String?
+  namaPemohon            String?
+  emailVendor            String?
+  tipePembayaran         String?
+  informasiPenerima      String?
+  namaPenerima           String?
+  detailBankPenerima     String?
+  nomorRekeningHp        String?
+  nominalTransaksi       Float?
+  keterangan             String?         @db.Text
+  lampiranFinance        String?         @db.Text
+  column17               String?
+  score                  String?
+  lampiranTax            String?         @db.Text
+  tipePengajuan          String?
+  bankPengirim           String?
+  alokasi                String?
+  printPendukung         String?
+  printForm              String?
+  nomorCetakForm         String?
+  verifiedFinance        String?
+  timestampVerifyFinance DateTime?
+  jenisPajak             String?
+  nilaiPajakTerutang     Float?
+  bankOut                String?
+  adaPpn                 String?
+  verifiedTax            String?
+  timestampVerifyTax     DateTime?
+  verifiedManager        String?
+  timestampVerifyManager DateTime?
+  catatanManager         String?         @db.Text
+  tanggalRealisasi       DateTime?
+  nominalRealisasi       Float?
+  invoice                String?         @db.Text
+  nomorBukti             String?
+  adminBank              String?
+  pic                    String?
+  status                 PengajuanStatus @default(PENDING)
+  createdAt              DateTime        @default(now())
+  updatedAt              DateTime        @updatedAt
+  user                   user            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  biaya_item             biaya_item[]
+
+  @@index([status])
+  @@index([userId])
+}
+
+model biaya_item {
+  id               String   @id @default(cuid())
+  semuaPengajuanId String
+  keterangan       String   @db.Text
+  nominal          Float
+  createdAt        DateTime @default(now())
+
+  semuaPengajuan semua_pengajuan @relation(fields: [semuaPengajuanId], references: [id], onDelete: Cascade)
+
+  @@index([semuaPengajuanId])
+}
+
+model master_bank {
+  id        String   @id @default(cuid())
+  nama      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model master_pajak {
+  id         String   @id @default(cuid())
+  jenisPajak String
+  persentase Float
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model master_nama {
+  id        String   @id @default(cuid())
+  nama      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model master_canvas {
+  id        String   @id @default(cuid())
+  kategori  String   @default("Default")
+  posisi    String
+  nama      String
+  jabatan   String
+  x         Float    @default(0)
+  y         Float    @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model plafon_iklan {
+  id                        String   @id @default(cuid())
+  bulan                     String   @unique
+  totalPlafon               Float    @default(0)
+  totalPengajuanRabOverride Float?
+  status                    String   @default("DRAFT")
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+
+  kebutuhan_iklan kebutuhan_iklan[]
+}
+
+model app_setting {
+  id                         String    @id @default("singleton")
+  financeSubmissionEnabled   Boolean   @default(true)
+  financeSubmissionStartDate DateTime?
+  updatedAt                  DateTime  @updatedAt
+}
+
+model peminjaman_kuota_iklan {
+  id                String   @id @default(cuid())
+  peminjamId        String
+  pemberiPinjamanId String
+  nominal           Float
+  alasan            String?  @db.Text
+  status            String   @default("PENDING_IZIN")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  peminjam        user @relation("PeminjamKuota", fields: [peminjamId], references: [id], onDelete: Cascade)
+  pemberiPinjaman user @relation("PemberiPinjaman", fields: [pemberiPinjamanId], references: [id], onDelete: Cascade)
+
+  @@index([peminjamId])
+  @@index([pemberiPinjamanId])
+}
+
+model realisasi_manual {
+  id         String   @id @default(cuid())
+  userId     String
+  sourceType String
+  sourceId   String
+  nominal    Float
+  keterangan String   @db.Text
+  tanggal    DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user user @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([sourceType, sourceId])
+}
+
+model catatan_realisasi_pribadi {
+  id          String   @id @default(cuid())
+  userId      String
+  divisi      String?
+  tipeBiaya   String?
+  uraian      String?
+  qty         Float?
+  satuan      String?
+  hargaSatuan Float?
+  total       Float?
+  realisasi   Float?
+  catatan     String?  @db.Text
+  urutan      Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user user @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
