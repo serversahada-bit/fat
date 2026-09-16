@@ -65,6 +65,7 @@ type Fields = {
   detailBankPenerima: string;
   nomorRekeningHp: string;
   email: string;
+  emailVendor: string;
   nominalTransaksi: string;
   keterangan: string;
   jenisPajak: string;
@@ -88,6 +89,7 @@ function buildInitialFields(item: SemuaPengajuanDetail): Fields {
     detailBankPenerima: item.detailBankPenerima ?? "",
     nomorRekeningHp: item.nomorRekeningHp ?? "",
     email: item.email ?? "",
+    emailVendor: item.emailVendor ?? "",
     nominalTransaksi: item.nominalTransaksi?.toString() ?? "",
     keterangan: item.keterangan ?? "",
     jenisPajak: item.jenisPajak ?? "",
@@ -303,6 +305,7 @@ function FundRequestCanvas({
         id: item.id,
         timestamp: item.timestamp?.toISOString(),
         email: fields.email,
+        emailVendor: fields.emailVendor,
         tanggalPermohonan: fields.tanggalPermohonan ? `${fields.tanggalPermohonan}T00:00:00+07:00` : null,
         tipeTransaksi: fields.tipeTransaksi,
         tipePembayaran: fields.tipePembayaran,
@@ -514,6 +517,13 @@ function FundRequestCanvas({
                     value={fields.email}
                     onChange={(v) => setFields((prev) => ({ ...prev, email: v }))}
                     onCommit={(v) => commit("email", v)}
+                    className="border-blue-300"
+                  />
+                  <span className="mt-2 block text-[11px] font-bold uppercase tracking-wide text-blue-700">Email External:</span>
+                  <DottedInput
+                    value={fields.emailVendor}
+                    onChange={(v) => setFields((prev) => ({ ...prev, emailVendor: v }))}
+                    onCommit={(v) => commit("emailVendor", v)}
                     className="border-blue-300"
                   />
                 </div>

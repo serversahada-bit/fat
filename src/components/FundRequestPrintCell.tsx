@@ -8,6 +8,7 @@ export type FundRequestPrintData = {
   id: string;
   timestamp?: string | null;
   email?: string | null;
+  emailVendor?: string | null;
   tanggalPermohonan?: string | null;
   tipeTransaksi?: string | null;
   tipePembayaran?: string | null;
@@ -259,12 +260,18 @@ export async function createFundRequestPdf(data: FundRequestPrintData, tipePenga
   drawLabelLine(doc, "Bank", data.detailBankPenerima || "", 12, 103, 36, 105);
   drawLabelLine(doc, "Nomor Rekening / VA", data.nomorRekeningHp || "", 12, 110, 36, 105);
 
-  doc.rect(162, 78, 123, 12);
+  doc.rect(162, 78, 123, 14);
   doc.setTextColor(0, 80, 216);
   doc.setFont("helvetica", "bold");
-  doc.text("MOHON BUKTI TRANSFER DIKIRIM KE :", 164, 83);
+  doc.setFontSize(8);
+  doc.text("MOHON BUKTI TRANSFER DIKIRIM KE :", 164, 82.5);
   doc.setFont("helvetica", "normal");
-  doc.text(data.email || "", 164, 88);
+  doc.text(data.email || "", 164, 86.5);
+  doc.setFont("helvetica", "bold");
+  doc.text("EMAIL EXTERNAL :", 164, 90.5);
+  doc.setFont("helvetica", "normal");
+  doc.text(data.emailVendor || "", 164 + doc.getTextWidth("EMAIL EXTERNAL :") + 2, 90.5);
+  doc.setFontSize(9);
   doc.setTextColor(0, 0, 0);
 
   doc.text("Nominal", 162, 96);
