@@ -89,6 +89,7 @@ export default async function PengajuanIklanPage({
         invoice: true,
         nominalRealisasi: true,
         nominalTransaksi: true,
+        keterangan: true,
       },
       orderBy: { createdAt: "desc" },
     }),
@@ -122,6 +123,7 @@ export default async function PengajuanIklanPage({
     isManagerApproved: boolean;
     tipePengajuan: string | null;
     invoice: string | null;
+    keterangan: string | null;
     amount: number;
   };
 
@@ -152,6 +154,7 @@ export default async function PengajuanIklanPage({
       isManagerApproved: submission.verifiedManager === "APPROVE",
       tipePengajuan: submission.tipePengajuan,
       invoice: submission.invoice,
+      keterangan: submission.keterangan,
       amount,
     };
 
@@ -591,6 +594,16 @@ export default async function PengajuanIklanPage({
                             <div className="flex flex-wrap gap-3">
                               {financeData.transactions.map((tx) => (
                                 <div key={tx.id} className="w-56 rounded-lg border border-slate-200 bg-white px-3 py-2 text-left text-[11px] shadow-sm">
+                                  {tx.keterangan && (
+                                    <div className="mb-1.5">
+                                      <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-400">
+                                        Berita Transaksi / Keterangan
+                                      </p>
+                                      <p className="line-clamp-2 text-[11px] font-semibold uppercase text-slate-800" title={tx.keterangan}>
+                                        {tx.keterangan}
+                                      </p>
+                                    </div>
+                                  )}
                                   <div className="flex items-center justify-between gap-2">
                                     <span className="font-semibold text-slate-700">{formatCurrency(tx.amount)}</span>
                                     <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${
