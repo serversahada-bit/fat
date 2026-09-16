@@ -84,6 +84,7 @@ export default async function PengajuanBulananPage({
         verifiedManager: true,
         tipePengajuan: true,
         invoice: true,
+        keterangan: true,
       },
       orderBy: { createdAt: "desc" },
     }),
@@ -97,6 +98,7 @@ export default async function PengajuanBulananPage({
     isManagerApproved: boolean;
     tipePengajuan: string | null;
     invoice: string | null;
+    keterangan: string | null;
     amount: number;
   };
 
@@ -139,6 +141,7 @@ export default async function PengajuanBulananPage({
         isManagerApproved: submission.verifiedManager === "APPROVE",
         tipePengajuan: submission.tipePengajuan,
         invoice: submission.invoice,
+        keterangan: submission.keterangan,
         amount: allocatedAmount,
       };
 
