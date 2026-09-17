@@ -238,6 +238,7 @@ export function SemuaPengajuanDetailModal({
                   id: item.id,
                   timestamp: item.timestamp?.toISOString(),
                   email: item.email,
+                  emailVendor: item.emailVendor,
                   tanggalPermohonan: item.tanggalPermohonan?.toISOString(),
                   tipeTransaksi: item.tipeTransaksi,
                   tipePembayaran: item.tipePembayaran,

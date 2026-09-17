@@ -294,6 +294,17 @@ export async function updateSemuaField(id: string, field: string, value: string 
     if (pengajuan?.nominalTransaksi) {
       updateData["bankOut"] = roundRupiah(pengajuan.nominalTransaksi - taxAmount).toString();
     }
+  } else if (field === "nominalTransaksi") {
+    const nominalBruto = value ? parseFloat(value) : null;
+    updateData["nominalTransaksi"] = nominalBruto;
+
+    const pengajuan = await prisma.semua_pengajuan.findUnique({
+      where: { id },
+      select: { nilaiPajakTerutang: true }
+    });
+    updateData["bankOut"] = nominalBruto != null
+      ? roundRupiah(nominalBruto - (pengajuan?.nilaiPajakTerutang ?? 0)).toString()
+      : null;
   } else if (field.startsWith("tanggal") || field.startsWith("timestamp")) {
     // datetime-local values ("YYYY-MM-DDTHH:mm") have no timezone suffix, so the JS
     // Date parser would otherwise read them as the server's own local time (UTC here)
