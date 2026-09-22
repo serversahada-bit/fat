@@ -268,6 +268,8 @@ model app_setting {
   id                         String    @id @default("singleton")
   financeSubmissionEnabled   Boolean   @default(true)
   financeSubmissionStartDate DateTime?
+  rabCutoffDay               Int       @default(23)
+  metaCutoffDay              Int       @default(23)
   updatedAt                  DateTime  @updatedAt
 }
 

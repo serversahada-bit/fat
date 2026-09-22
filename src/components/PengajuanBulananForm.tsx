@@ -20,16 +20,24 @@ export function PengajuanBulananForm({
   dbUser,
   totalSisa,
   bulanLabel,
+  rincianSuggestions = [],
 }: {
   dbUser: any,
   totalSisa: number,
   bulanLabel: string,
+  rincianSuggestions?: string[],
 }) {
   const [qty, setQty] = useState(1);
   const [hargaSatuan, setHargaSatuan] = useState(0);
+  const [rincian, setRincian] = useState("");
+  const [showRincianSuggestions, setShowRincianSuggestions] = useState(false);
 
   const total = qty * hargaSatuan;
   const isOverLimit = totalSisa > 0 && total > totalSisa;
+
+  const filteredRincianSuggestions = rincian.trim()
+    ? rincianSuggestions.filter((s) => s.toLowerCase().includes(rincian.trim().toLowerCase()))
+    : rincianSuggestions;
 
   return (
     <form action={createKebutuhanBulanan} className="flex flex-col gap-6">
@@ -57,7 +65,7 @@ export function PengajuanBulananForm({
         </div>
       </div>
 
-      <div className="flex flex-col gap-2">
+      <div className="relative flex flex-col gap-2">
         <label htmlFor="rincian" className="text-sm font-semibold text-slate-700">Rincian / Uraian</label>
         <textarea
           id="rincian"
@@ -65,8 +73,32 @@ export function PengajuanBulananForm({
           placeholder="Nama barang atau uraian kebutuhan"
           rows={3}
           required
+          value={rincian}
+          onChange={(e) => setRincian(e.target.value)}
+          onFocus={() => setShowRincianSuggestions(true)}
+          onBlur={() => setShowRincianSuggestions(false)}
+          autoComplete="off"
           className="w-full resize-y rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20"
         />
+        {showRincianSuggestions && filteredRincianSuggestions.length > 0 && (
+          <ul className="custom-scrollbar absolute top-full z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
+            {filteredRincianSuggestions.slice(0, 8).map((suggestion) => (
+              <li key={suggestion}>
+                <button
+                  type="button"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    setRincian(suggestion);
+                    setShowRincianSuggestions(false);
+                  }}
+                  className="block w-full truncate px-4 py-2 text-left text-sm text-slate-700 hover:bg-purple-50 hover:text-purple-700"
+                >
+                  {suggestion}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-3 md:gap-6">

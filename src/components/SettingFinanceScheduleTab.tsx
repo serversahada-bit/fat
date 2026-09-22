@@ -1,4 +1,5 @@
 import { getFinanceSubmissionSetting, updateFinanceSubmissionSetting } from "@/app/actions/setting";
+import { getBulanLabelWithCutoff, getMetaBulanLabelWithCutoff, getNextCutoffDateLabel } from "@/lib/bulan";
 
 function toDateInputValue(date: Date | null) {
   if (!date) return "";
@@ -7,6 +8,12 @@ function toDateInputValue(date: Date | null) {
 
 export async function SettingFinanceScheduleTab() {
   const setting = await getFinanceSubmissionSetting();
+  const [currentBulan, currentBulanMeta] = await Promise.all([
+    getBulanLabelWithCutoff(setting.rabCutoffDay),
+    getMetaBulanLabelWithCutoff(setting.metaCutoffDay),
+  ]);
+  const nextRabCutoffDate = getNextCutoffDateLabel(setting.rabCutoffDay);
+  const nextMetaCutoffDate = getNextCutoffDateLabel(setting.metaCutoffDay);
 
   return (
     <div className="flex flex-col gap-6">
@@ -45,6 +52,50 @@ export async function SettingFinanceScheduleTab() {
             />
             <p className="text-xs text-slate-500">
               Sebelum tanggal ini, tombol akan menampilkan &quot;Pengajuan mulai tanggal ...&quot;. Kosongkan jika tidak ingin membatasi tanggal.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-2 md:max-w-xs">
+            <label htmlFor="rabCutoffDay" className="text-sm font-semibold text-slate-700">
+              Tanggal Tutup Periode RAB
+            </label>
+            <input
+              id="rabCutoffDay"
+              name="rabCutoffDay"
+              type="number"
+              min={1}
+              max={31}
+              defaultValue={setting.rabCutoffDay}
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20"
+            />
+            <p className="text-xs text-slate-500">
+              Mulai tanggal ini setiap bulan, RAB Bulanan &amp; Iklan (selain Meta Ads) bulan berjalan otomatis disembunyikan dari daftar aktif dan pengajuan baru dianggarkan untuk bulan depan.
+            </p>
+            <p className="rounded-lg bg-purple-50 px-3 py-2 text-xs font-medium text-purple-700">
+              Periode aktif saat ini: <span className="font-bold">{currentBulan}</span>.
+              Otomatis pindah ke bulan berikutnya mulai tanggal <span className="font-bold">{nextRabCutoffDate}</span>.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-2 md:max-w-xs">
+            <label htmlFor="metaCutoffDay" className="text-sm font-semibold text-slate-700">
+              Tanggal Tutup Meta
+            </label>
+            <input
+              id="metaCutoffDay"
+              name="metaCutoffDay"
+              type="number"
+              min={1}
+              max={31}
+              defaultValue={setting.metaCutoffDay}
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20"
+            />
+            <p className="text-xs text-slate-500">
+              Khusus RAB Iklan platform Meta Ads, karena billing Meta (kredit dulu, ditagih belakangan) berjalan di siklus tersendiri, terpisah dari Tanggal Tutup Periode RAB di atas.
+            </p>
+            <p className="rounded-lg bg-purple-50 px-3 py-2 text-xs font-medium text-purple-700">
+              Periode Meta aktif saat ini: <span className="font-bold">{currentBulanMeta}</span>.
+              Otomatis pindah ke bulan berikutnya mulai tanggal <span className="font-bold">{nextMetaCutoffDate}</span>.
             </p>
           </div>
 

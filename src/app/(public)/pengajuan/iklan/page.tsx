@@ -9,6 +9,7 @@ import { UploadInvoiceButton } from "@/components/UploadInvoiceButton";
 import { EditableAmount } from "@/components/EditableAmount";
 import { CurrencyInput } from "@/components/CurrencyInput";
 import { EMPLOYEE_PERMISSIONS, requireEmployeePermission } from "@/lib/auth";
+import { getBulanLabelWithCutoff, getMetaBulanLabelWithCutoff, getPreviousBulanLabel } from "@/lib/bulan";
 import { getVisibleEmployeeNavItems } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
@@ -53,6 +54,17 @@ export default async function PengajuanIklanPage({
   const params = await searchParams;
   const isFormOpen = params?.baru === "true";
   const currentTab = typeof params?.tab === "string" ? params.tab : "Semua";
+
+  // Kebutuhan iklan diajukan tanggal 24 ke atas dianggarkan bulan berikutnya,
+  // jadi RAB bulan lalu disembunyikan dari daftar aktif dan tidak dicampur
+  // dengan RAB bulan berjalan begitu finance minta pengajuan ulang. Meta Ads pakai
+  // cutoff sendiri (metaCutoffDay) karena billing Meta jalan di siklus terpisah
+  // dari periode RAB platform lain.
+  const [currentBulan, currentBulanMeta] = await Promise.all([
+    getBulanLabelWithCutoff(),
+    getMetaBulanLabelWithCutoff(),
+  ]);
+  const previousBulan = getPreviousBulanLabel(currentBulan);
 
   const statusFilter =
     currentTab === "Pending" ? "PENDING" :
@@ -180,6 +192,24 @@ export default async function PengajuanIklanPage({
     }
   }
 
+  function hasOutstandingKasbon(itemId: string) {
+    const financeData = financeDataMap.get(itemId);
+    if (!financeData) return false;
+    return financeData.transactions.some((tx) => tx.tipePengajuan === "KASBON" && !tx.invoice);
+  }
+
+  // daftarPengajuan (semua bulan) tetap dipakai untuk kalkulasi kuota di bawah
+  // karena Sisa Kuota Total bersifat akumulatif antar bulan. Yang ditampilkan di
+  // tabel hanya RAB bulan berjalan - kecuali RAB Meta Ads yang masih ada KASBON
+  // belum ber-invoice: billing Meta (kredit dulu, ditagih belakangan) belum
+  // benar-benar selesai meski periodenya sudah lewat, jadi tetap ditampilkan
+  // supaya tidak hilang dari radar Finance sebelum invoice-nya di-upload.
+  const daftarPengajuanBulanIni = daftarPengajuan.filter((item) => {
+    const isBulanAktif = item.bulan === (item.platform === "Meta Ads" ? currentBulanMeta : currentBulan);
+    if (isBulanAktif) return true;
+    return item.platform === "Meta Ads" && hasOutstandingKasbon(item.id);
+  });
+
   const ratioPerBulan = new Map<string, number>();
   for (const group of globalApprovedKebutuhan) {
     const bulan = group.bulan;
@@ -193,16 +223,28 @@ export default async function PengajuanIklanPage({
     }
   }
 
+  const approvedTotalPerBulan = new Map<string, number>();
+  const realisasiPerBulan = new Map<string, number>();
+
   let totalRabAsli = 0;
   let totalRabEfisiensi = 0;
-  daftarPengajuan.forEach(p => { 
+  daftarPengajuan.forEach(p => {
     if (p.status === "APPROVED") {
       totalRabAsli += p.total;
       const ratio = ratioPerBulan.get(p.bulan) || 1;
       totalRabEfisiensi += p.total * ratio;
+      approvedTotalPerBulan.set(p.bulan, (approvedTotalPerBulan.get(p.bulan) || 0) + p.total);
+    }
+    const financeData = financeDataMap.get(p.id);
+    if (financeData) {
+      realisasiPerBulan.set(p.bulan, (realisasiPerBulan.get(p.bulan) || 0) + financeData.totalRealisasi);
     }
   });
-  
+
+  // Sisa bulan lalu ditampilkan sebagai referensi saja (RAB disetujui - realisasi untuk
+  // bulan sebelumnya), berbeda dari SISA KUOTA TOTAL di bawah yang akumulatif semua bulan.
+  const sisaBulanLalu = (approvedTotalPerBulan.get(previousBulan) || 0) - (realisasiPerBulan.get(previousBulan) || 0);
+
   let totalRealisasiKeseluruhan = 0;
   for (const [_, data] of Array.from(financeDataMap.entries())) {
      totalRealisasiKeseluruhan += data.totalRealisasi;
@@ -340,6 +382,10 @@ export default async function PengajuanIklanPage({
             <h3 className="text-lg font-bold text-slate-800 mb-4">Ringkasan Kuota Anda</h3>
             <div className="space-y-3">
               <div className="flex justify-between text-sm">
+                <span className="text-slate-500">Sisa {previousBulan}:</span>
+                <span className="font-semibold text-slate-500">{formatCurrency(sisaBulanLalu)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
                 <span className="text-slate-500">Total RAB Asli (Disetujui Admin):</span>
                 <span className="font-semibold text-slate-700">{formatCurrency(totalRabAsli)}</span>
               </div>
@@ -460,9 +506,9 @@ export default async function PengajuanIklanPage({
             </button>
           </div>
 
-          {daftarPengajuan.length === 0 ? (
+          {daftarPengajuanBulanIni.length === 0 ? (
             <div className="py-12 text-center text-slate-500">
-              Belum ada data kebutuhan iklan.
+              Belum ada data kebutuhan iklan bulan ini.
             </div>
           ) : (
             <div className="custom-scrollbar overflow-x-auto rounded-xl border border-slate-200">
@@ -484,7 +530,7 @@ export default async function PengajuanIklanPage({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-sm">
-                  {daftarPengajuan.map((item: any) => {
+                  {daftarPengajuanBulanIni.map((item: any) => {
                     const financeData = financeDataMap.get(item.id) ?? null;
                     const totalRealisasi = financeData?.totalRealisasi ?? 0;
                     const rowSisaBudget = (item.total ?? 0) - totalRealisasi;

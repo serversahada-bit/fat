@@ -6,7 +6,7 @@ import { getFinanceSubmissionSetting } from "@/app/actions/setting";
 import { PengajuanBulananForm } from "@/components/PengajuanBulananForm";
 import { PengajuanBulananTable } from "@/components/PengajuanBulananTable";
 import { EMPLOYEE_PERMISSIONS, requireEmployeePermission } from "@/lib/auth";
-import { getBulanLabelWithCutoff } from "@/lib/bulan";
+import { getBulanLabelWithCutoff, getPreviousBulanLabel } from "@/lib/bulan";
 import { getVisibleEmployeeNavItems } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
@@ -51,18 +51,21 @@ export default async function PengajuanBulananPage({
 
   // Kebutuhan bulanan diajukan tanggal 24 ke atas dianggarkan bulan berikutnya,
   // jadi daftar yang ditampilkan difilter berdasarkan aturan yang sama.
-  const currentBulan = getBulanLabelWithCutoff();
+  const currentBulan = await getBulanLabelWithCutoff();
+  const previousBulan = getPreviousBulanLabel(currentBulan);
 
-  const whereClause: { userId: string; kategori?: string; bulan?: string } = {
+  const whereClause: { userId: string; kategori?: string } = {
     userId: session.user.id,
-    bulan: currentBulan,
   };
 
   if (kategoriFilter) {
     whereClause.kategori = kategoriFilter;
   }
 
-  const [daftarPengajuan, financeSubmissions] = await Promise.all([
+  // daftarPengajuan diambil untuk semua bulan (tidak difilter bulan) supaya bisa
+  // menghitung "Sisa bulan lalu" sebagai referensi. Yang ditampilkan di tabel
+  // hanya bulan berjalan (daftarPengajuanBulanIni di bawah).
+  const [daftarPengajuan, financeSubmissions, rincianHistory] = await Promise.all([
     prisma.kebutuhan_bulanan.findMany({
       where: whereClause,
       orderBy: { createdAt: "desc" },
@@ -88,9 +91,21 @@ export default async function PengajuanBulananPage({
       },
       orderBy: { createdAt: "desc" },
     }),
+    // Riwayat rincian milik user sendiri, buat saran autocomplete di form supaya
+    // tidak perlu ketik ulang uraian yang sama tiap bulan (mis. ATK/P3K rutin).
+    prisma.kebutuhan_bulanan.findMany({
+      where: { userId: session.user.id },
+      select: { rincian: true },
+      orderBy: { createdAt: "desc" },
+      take: 200,
+    }),
   ]);
 
   const itemsById = new Map(daftarPengajuan.map((item) => [item.id, item]));
+
+  const rincianSuggestions = Array.from(
+    new Set(rincianHistory.map((item) => item.rincian.trim()).filter(Boolean))
+  ).slice(0, 30);
 
   type FinanceTransaction = {
     id: string;
@@ -168,16 +183,25 @@ export default async function PengajuanBulananPage({
     }
   }
 
-  let totalSisa = 0;
-  for (const item of daftarPengajuan) {
-    if (item.kategori === "DI LUAR RAB") continue;
-    const financeData = financeDataMap.get(item.id);
-    if (financeData) {
-      totalSisa += (item.total - financeData.totalRealisasi);
+  const daftarPengajuanBulanIni = daftarPengajuan.filter((item) => item.bulan === currentBulan);
+  const daftarPengajuanBulanLalu = daftarPengajuan.filter((item) => item.bulan === previousBulan);
+
+  function hitungTotalSisa(items: typeof daftarPengajuan) {
+    let total = 0;
+    for (const item of items) {
+      if (item.kategori === "DI LUAR RAB") continue;
+      const financeData = financeDataMap.get(item.id);
+      if (financeData) {
+        total += (item.total - financeData.totalRealisasi);
+      }
     }
+    return total;
   }
 
-  const rows = daftarPengajuan.map((item: any) => {
+  const totalSisa = hitungTotalSisa(daftarPengajuanBulanIni);
+  const totalSisaBulanLalu = hitungTotalSisa(daftarPengajuanBulanLalu);
+
+  const rows = daftarPengajuanBulanIni.map((item: any) => {
     const financeData = financeDataMap.get(item.id) ?? null;
     const totalRealisasi = financeData?.totalRealisasi ?? 0;
     const sisaBudget = (item.total ?? 0) - totalRealisasi;
@@ -214,7 +238,7 @@ export default async function PengajuanBulananPage({
               </div>
 
               <div className="custom-scrollbar overflow-y-auto p-6 md:p-8">
-                <PengajuanBulananForm dbUser={dbUser} totalSisa={totalSisa} bulanLabel={currentBulan} />
+                <PengajuanBulananForm dbUser={dbUser} totalSisa={totalSisa} bulanLabel={currentBulan} rincianSuggestions={rincianSuggestions} />
               </div>
             </div>
           </div>
@@ -234,6 +258,9 @@ export default async function PengajuanBulananPage({
               ))}
             </div>
             <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 rounded-lg bg-slate-50 px-4 py-2 text-sm font-bold text-slate-500 shadow-sm border border-slate-200">
+                Sisa {previousBulan}: {formatCurrency(totalSisaBulanLalu)}
+              </div>
               <div className="flex items-center gap-2 rounded-lg bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-700 shadow-sm border border-emerald-100">
                 Total Sisa: {formatCurrency(totalSisa)}
               </div>
@@ -244,7 +271,7 @@ export default async function PengajuanBulananPage({
             </div>
           </div>
 
-          {daftarPengajuan.length === 0 ? (
+          {daftarPengajuanBulanIni.length === 0 ? (
             <div className="py-12 text-center text-slate-500">
               Belum ada data kebutuhan bulanan.
             </div>

@@ -194,16 +194,30 @@ export async function updateFinanceSubmissionSetting(formData: FormData) {
   // Explicit +07:00 (WIB) offset so this doesn't depend on the server process's local timezone.
   const startDate = startDateStr ? new Date(`${startDateStr}T00:00:00+07:00`) : null;
 
+  const rabCutoffDayRaw = Number(formData.get("rabCutoffDay"));
+  const rabCutoffDay = Number.isInteger(rabCutoffDayRaw) && rabCutoffDayRaw >= 1 && rabCutoffDayRaw <= 31
+    ? rabCutoffDayRaw
+    : 23;
+
+  const metaCutoffDayRaw = Number(formData.get("metaCutoffDay"));
+  const metaCutoffDay = Number.isInteger(metaCutoffDayRaw) && metaCutoffDayRaw >= 1 && metaCutoffDayRaw <= 31
+    ? metaCutoffDayRaw
+    : 23;
+
   await prisma.app_setting.upsert({
     where: { id: "singleton" },
     update: {
       financeSubmissionEnabled: enabled,
       financeSubmissionStartDate: startDate,
+      rabCutoffDay,
+      metaCutoffDay,
     },
     create: {
       id: "singleton",
       financeSubmissionEnabled: enabled,
       financeSubmissionStartDate: startDate,
+      rabCutoffDay,
+      metaCutoffDay,
     },
   });
 
