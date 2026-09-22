@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { DASHBOARD_PERMISSIONS, requireAdminPermission, requireRole } from "@/lib/auth";
-import { getBulanLabelWithCutoff, getMetaBulanLabelWithCutoff } from "@/lib/bulan";
+import { getBulanLabelWithCutoff, getMetaBulanLabelWithCutoff } from "@/lib/bulan-server";
 
 export async function deleteKebutuhanBulananBulk(formData: FormData) {
   await requireAdminPermission(DASHBOARD_PERMISSIONS.BULANAN);

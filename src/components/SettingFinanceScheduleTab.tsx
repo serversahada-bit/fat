@@ -1,5 +1,6 @@
 import { getFinanceSubmissionSetting, updateFinanceSubmissionSetting } from "@/app/actions/setting";
-import { getBulanLabelWithCutoff, getMetaBulanLabelWithCutoff, getNextCutoffDateLabel } from "@/lib/bulan";
+import { getNextCutoffDateLabel } from "@/lib/bulan";
+import { getBulanLabelWithCutoff, getMetaBulanLabelWithCutoff } from "@/lib/bulan-server";
 
 function toDateInputValue(date: Date | null) {
   if (!date) return "";
