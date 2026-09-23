@@ -1,8 +1,8 @@
 "use client";
 
-import { Fragment, useEffect, useRef, useState, useTransition } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2, Send } from "lucide-react";
+import { Trash2, Send, Filter } from "lucide-react";
 import { FinanceSubmissionLauncher } from "@/components/FinanceSubmissionLauncher";
 import { UploadInvoiceButton } from "@/components/UploadInvoiceButton";
 import { EditableAmount } from "@/components/EditableAmount";
@@ -69,9 +69,18 @@ function formatRibuan(amount: number) {
 
 const KATEGORI_OPTIONS = ["OPS RT", "ATK", "P3K", "DI LUAR RAB"];
 const SATUAN_OPTIONS = ["UNIT", "PCS", "BOX", "ORANG", "BANDLE", "PACK", "BULANAN", "MINGGUAN", "HARI", "JAM", "LITER", "KG", "RIM", "SET", "VIDEO", "FOTO", "SHEETS", "DUS"];
+const NAMA_BULAN_ORDER = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+
+function bulanSortKey(label: string) {
+  const [name, yearStr] = label.split(" ");
+  const monthIndex = NAMA_BULAN_ORDER.indexOf(name);
+  const year = Number(yearStr) || 0;
+  return year * 12 + (monthIndex === -1 ? 0 : monthIndex);
+}
 
 export function PengajuanBulananTable({
   rows,
+  defaultBulan,
   today,
   userEmail,
   userName,
@@ -79,6 +88,7 @@ export function PengajuanBulananTable({
   financeSubmissionStartDate,
 }: {
   rows: Row[];
+  defaultBulan: string;
   today: string;
   userEmail: string;
   userName: string;
@@ -90,9 +100,26 @@ export function PengajuanBulananTable({
   const [isPending, startTransition] = useTransition();
   const [editingRow, setEditingRow] = useState<Row | null>(null);
   const [isBulkFinanceOpen, setIsBulkFinanceOpen] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<PengajuanStatus | "SEMUA">("SEMUA");
+  const [bulanFilter, setBulanFilter] = useState<string>(defaultBulan);
   const headerCheckboxRef = useRef<HTMLInputElement>(null);
 
-  const selectableIds = rows
+  // Bulan options come from whatever bulan values actually exist among this employee's
+  // submissions, so a month only shows up once there's really something in it.
+  const bulanOptions = useMemo(() => {
+    const seen = new Set(rows.map((row) => row.item.bulan));
+    return Array.from(seen).sort((a, b) => bulanSortKey(a) - bulanSortKey(b));
+  }, [rows]);
+
+  const filteredRows = useMemo(() => {
+    return rows.filter((row) => {
+      if (statusFilter !== "SEMUA" && row.item.status !== statusFilter) return false;
+      if (bulanFilter !== "SEMUA" && row.item.bulan !== bulanFilter) return false;
+      return true;
+    });
+  }, [rows, statusFilter, bulanFilter]);
+
+  const selectableIds = filteredRows
     .filter((row) => row.item.status === "PENDING" || row.item.status === "APPROVED")
     .map((row) => row.item.id);
 
@@ -162,8 +189,53 @@ export function PengajuanBulananTable({
     setEditingRow(row);
   }
 
+  const statusOptions: { value: PengajuanStatus | "SEMUA"; label: string }[] = [
+    { value: "SEMUA", label: "Semua" },
+    { value: "PENDING", label: "Pending" },
+    { value: "APPROVED", label: "Approved" },
+    { value: "REJECTED", label: "Rejected" },
+  ];
+
   return (
     <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
+          <Filter className="h-3.5 w-3.5" />
+          Filter:
+        </span>
+        {statusOptions.map((opt) => (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => setStatusFilter(opt.value)}
+            className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
+              statusFilter === opt.value
+                ? "gradient-brand text-white shadow-sm"
+                : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+            }`}
+          >
+            {opt.label}
+          </button>
+        ))}
+        {bulanOptions.length > 1 && (
+          <select
+            value={bulanFilter}
+            onChange={(e) => setBulanFilter(e.target.value)}
+            className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600 outline-none focus:border-purple-500"
+          >
+            <option value="SEMUA">Semua Bulan</option>
+            {bulanOptions.map((bulan) => (
+              <option key={bulan} value={bulan}>{bulan}</option>
+            ))}
+          </select>
+        )}
+        {bulanFilter !== "SEMUA" && (
+          <span className="text-xs text-slate-400">
+            Menampilkan {filteredRows.length} dari {rows.length} pengajuan
+          </span>
+        )}
+      </div>
+
       {selected.size > 0 && (
         <div className="flex flex-col gap-3 rounded-xl border border-purple-200 bg-purple-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
           <span className="text-sm font-semibold text-purple-700">{selected.size} baris dipilih</span>
@@ -236,7 +308,14 @@ export function PengajuanBulananTable({
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 text-sm">
-            {rows.map(({ item, financeData, totalRealisasi, sisaBudget }) => {
+            {filteredRows.length === 0 && (
+              <tr>
+                <td colSpan={13} className="px-4 py-10 text-center text-sm text-slate-500">
+                  Tidak ada pengajuan dengan status ini.
+                </td>
+              </tr>
+            )}
+            {filteredRows.map(({ item, financeData, totalRealisasi, sisaBudget }) => {
               const isSelectable = item.status === "PENDING" || item.status === "APPROVED";
               const isEditableByDoubleClick = item.status === "PENDING";
               return (

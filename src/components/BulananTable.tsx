@@ -1,10 +1,11 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { Trash2, Check, X as XIcon, RotateCcw, ChevronDown, ChevronRight } from "lucide-react";
+import { Trash2, Check, X as XIcon, RotateCcw, ChevronDown, ChevronRight, Filter } from "lucide-react";
 import { ApprovalDropdown } from "@/components/ApprovalDropdown";
 import { ApprovalNote } from "@/components/ApprovalNote";
 import { EditableAmount } from "@/components/EditableAmount";
+import { EditableBulan } from "@/components/EditableBulan";
 import { deleteKebutuhanBulananBulk, updateKebutuhanBulananStatusBulk } from "@/app/actions/pengajuan";
 
 type PengajuanStatus = "PENDING" | "APPROVED" | "REJECTED";
@@ -55,42 +56,83 @@ function formatDate(date: Date) {
   }).format(date);
 }
 
-function groupItems(items: PengajuanBulanan[]): Group[] {
-  const map = new Map<string, Group>();
+// Items are only merged into the same group if they share bulan/kategori/divisi/pic
+// AND were submitted close together in time - otherwise unrelated submissions made
+// days/weeks apart (that happen to match the same fields) would wrongly look like
+// one combined submission.
+const GROUP_TIME_WINDOW_MS = 5 * 60 * 1000;
 
+function groupItems(items: PengajuanBulanan[]): Group[] {
+  const groupsByBaseKey = new Map<string, Group[]>();
+  const orderedGroups: Group[] = [];
+
+  // Relies on items already being sorted by createdAt desc (as queried), so within
+  // a base key, consecutive items are encountered in decreasing chronological order.
   for (const item of items) {
-    const key = `${item.bulan}|${item.kategori}|${item.divisi}|${item.pic}`;
-    const existing = map.get(key);
-    if (existing) {
-      existing.items.push(item);
-      existing.totalBudget += item.total;
-      if (item.createdAt > existing.latestCreatedAt) {
-        existing.latestCreatedAt = item.createdAt;
+    const baseKey = `${item.bulan}|${item.kategori}|${item.divisi}|${item.pic}`;
+    const candidates = groupsByBaseKey.get(baseKey);
+    const lastGroup = candidates?.[candidates.length - 1];
+    const lastItemInGroup = lastGroup?.items[lastGroup.items.length - 1];
+
+    if (
+      lastGroup &&
+      lastItemInGroup &&
+      lastItemInGroup.createdAt.getTime() - item.createdAt.getTime() <= GROUP_TIME_WINDOW_MS
+    ) {
+      lastGroup.items.push(item);
+      lastGroup.totalBudget += item.total;
+      if (item.createdAt > lastGroup.latestCreatedAt) {
+        lastGroup.latestCreatedAt = item.createdAt;
       }
+      continue;
+    }
+
+    const newGroup: Group = {
+      key: `${baseKey}|${item.id}`,
+      bulan: item.bulan,
+      kategori: item.kategori,
+      divisi: item.divisi,
+      pic: item.pic,
+      items: [item],
+      totalBudget: item.total,
+      latestCreatedAt: item.createdAt,
+    };
+    orderedGroups.push(newGroup);
+    if (candidates) {
+      candidates.push(newGroup);
     } else {
-      map.set(key, {
-        key,
-        bulan: item.bulan,
-        kategori: item.kategori,
-        divisi: item.divisi,
-        pic: item.pic,
-        items: [item],
-        totalBudget: item.total,
-        latestCreatedAt: item.createdAt,
-      });
+      groupsByBaseKey.set(baseKey, [newGroup]);
     }
   }
 
-  return Array.from(map.values());
+  return orderedGroups;
 }
 
 export function BulananTable({ items }: { items: PengajuanBulanan[] }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [isPending, startTransition] = useTransition();
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [statusFilter, setStatusFilter] = useState<PengajuanStatus | "SEMUA">("SEMUA");
+  const [bulanFilter, setBulanFilter] = useState<string>("SEMUA");
   const headerCheckboxRef = useRef<HTMLInputElement>(null);
 
-  const groups = useMemo(() => groupItems(items), [items]);
+  // Bulan options are derived from whatever bulan values actually exist in this
+  // dataset (rather than a fixed list) since admin can reassign an item's bulan to
+  // any nearby month via EditableBulan, so new values can appear at any time.
+  const bulanOptions = useMemo(() => {
+    const seen = new Set(items.map((item) => item.bulan));
+    return Array.from(seen).sort();
+  }, [items]);
+
+  const filteredItems = useMemo(() => {
+    return items.filter((item) => {
+      if (statusFilter !== "SEMUA" && item.status !== statusFilter) return false;
+      if (bulanFilter !== "SEMUA" && item.bulan !== bulanFilter) return false;
+      return true;
+    });
+  }, [items, statusFilter, bulanFilter]);
+
+  const groups = useMemo(() => groupItems(filteredItems), [filteredItems]);
 
   useEffect(() => {
     setSelected((prev) => {
@@ -100,7 +142,7 @@ export function BulananTable({ items }: { items: PengajuanBulanan[] }) {
     });
   }, [items]);
 
-  const allSelected = items.length > 0 && selected.size === items.length;
+  const allSelected = filteredItems.length > 0 && filteredItems.every((item) => selected.has(item.id));
   const someSelected = selected.size > 0 && !allSelected;
 
   useEffect(() => {
@@ -110,7 +152,7 @@ export function BulananTable({ items }: { items: PengajuanBulanan[] }) {
   }, [someSelected]);
 
   function toggleAll() {
-    setSelected(allSelected ? new Set() : new Set(items.map((item) => item.id)));
+    setSelected(allSelected ? new Set() : new Set(filteredItems.map((item) => item.id)));
   }
 
   function toggleOne(id: string) {
@@ -215,7 +257,9 @@ export function BulananTable({ items }: { items: PengajuanBulanan[] }) {
         <td className="px-4 py-4 text-center text-slate-600">{item.pic}</td>
         <td className={`min-w-[200px] whitespace-normal px-4 py-4 ${indented ? "pl-10" : ""}`}>
           <div className="font-semibold text-slate-900">{item.rincian}</div>
-          <div className="mt-0.5 text-xs text-slate-500">Pengajuan untuk bulan {item.bulan}</div>
+          <div className="mt-0.5 text-xs text-slate-500">
+            Pengajuan untuk bulan <EditableBulan pengajuanId={item.id} initialBulan={item.bulan} />
+          </div>
         </td>
         <td className="px-4 py-4 text-center font-medium text-slate-700">
           <div className="flex items-center justify-center gap-1">
@@ -245,8 +289,53 @@ export function BulananTable({ items }: { items: PengajuanBulanan[] }) {
     );
   }
 
+  const statusFilterOptions: { value: PengajuanStatus | "SEMUA"; label: string }[] = [
+    { value: "SEMUA", label: "Semua Status" },
+    { value: "PENDING", label: "Pending" },
+    { value: "APPROVED", label: "Approved" },
+    { value: "REJECTED", label: "Rejected" },
+  ];
+
   return (
     <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
+          <Filter className="h-3.5 w-3.5" />
+          Filter:
+        </span>
+        {statusFilterOptions.map((opt) => (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => setStatusFilter(opt.value)}
+            className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
+              statusFilter === opt.value
+                ? "gradient-brand text-white shadow-sm"
+                : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+            }`}
+          >
+            {opt.label}
+          </button>
+        ))}
+        {bulanOptions.length > 1 && (
+          <select
+            value={bulanFilter}
+            onChange={(e) => setBulanFilter(e.target.value)}
+            className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600 outline-none focus:border-purple-500"
+          >
+            <option value="SEMUA">Semua Bulan</option>
+            {bulanOptions.map((bulan) => (
+              <option key={bulan} value={bulan}>{bulan}</option>
+            ))}
+          </select>
+        )}
+        {(statusFilter !== "SEMUA" || bulanFilter !== "SEMUA") && (
+          <span className="text-xs text-slate-400">
+            Menampilkan {filteredItems.length} dari {items.length} pengajuan
+          </span>
+        )}
+      </div>
+
       {selected.size > 0 && (
         <div className="flex flex-col gap-3 rounded-xl border border-purple-200 bg-purple-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
           <span className="text-sm font-semibold text-purple-700">{selected.size} baris dipilih</span>
@@ -319,6 +408,13 @@ export function BulananTable({ items }: { items: PengajuanBulanan[] }) {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 text-sm">
+            {groups.length === 0 && (
+              <tr>
+                <td colSpan={11} className="px-4 py-10 text-center text-sm text-slate-500">
+                  Tidak ada pengajuan yang cocok dengan filter ini.
+                </td>
+              </tr>
+            )}
             {groups.map((group) => {
               if (group.items.length === 1) {
                 return renderItemRow(group.items[0], false);

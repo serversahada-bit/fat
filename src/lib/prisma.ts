@@ -11,6 +11,7 @@ const adapter = new PrismaMariaDb({
   user: dbUrl.username || 'root',
   password: dbUrl.password || undefined,
   database: dbUrl.pathname.substring(1),
+  allowPublicKeyRetrieval: true,
 });
 
 export const prisma =

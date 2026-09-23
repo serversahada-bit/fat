@@ -202,7 +202,7 @@ export default async function PengajuanBulananPage({
   const totalSisa = hitungTotalSisa(daftarPengajuanBulanIni);
   const totalSisaBulanLalu = hitungTotalSisa(daftarPengajuanBulanLalu);
 
-  const rows = daftarPengajuanBulanIni.map((item: any) => {
+  const rows = daftarPengajuan.map((item: any) => {
     const financeData = financeDataMap.get(item.id) ?? null;
     const totalRealisasi = financeData?.totalRealisasi ?? 0;
     const sisaBudget = (item.total ?? 0) - totalRealisasi;
@@ -265,20 +265,17 @@ export default async function PengajuanBulananPage({
               <div className="flex items-center gap-2 rounded-lg bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-700 shadow-sm border border-emerald-100">
                 Total Sisa: {formatCurrency(totalSisa)}
               </div>
-              <button className="hidden items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 sm:flex">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
-                Filter
-              </button>
             </div>
           </div>
 
-          {daftarPengajuanBulanIni.length === 0 ? (
+          {daftarPengajuan.length === 0 ? (
             <div className="py-12 text-center text-slate-500">
               Belum ada data kebutuhan bulanan.
             </div>
           ) : (
             <PengajuanBulananTable
               rows={rows}
+              defaultBulan={currentBulan}
               today={today}
               userEmail={session.user.email ?? ""}
               userName={session.user.name ?? ""}

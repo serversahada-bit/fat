@@ -252,6 +252,15 @@ export async function updateKebutuhanBulananStatus(formData: FormData) {
     updateData.catatanAdmin = catatanAdmin || null;
   }
 
+  // Admin can reassign which budget month a submission counts toward regardless of
+  // approval status - the automatic cutoff-day rule only looks at submit date, so it
+  // can't tell apart a late-month request for the current month from one that's
+  // genuinely meant for next month (e.g. an item bought ahead for next month's use).
+  if (formData.has("bulan")) {
+    const bulan = String(formData.get("bulan")).trim();
+    if (bulan) updateData.bulan = bulan;
+  }
+
   let newQty = existing.qty;
   let newHargaSatuan = existing.hargaSatuan;
   let newTotal = existing.total;
