@@ -32,7 +32,7 @@ export function getBulanLabelForCutoffDay(cutoffDay: number) {
   const day = Number(
     new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta", day: "numeric" }).format(new Date()),
   );
-  return getBulanLabel(day > cutoffDay ? 1 : 0);
+  return getBulanLabel(day >= cutoffDay ? 1 : 0);
 }
 
 /**
@@ -44,6 +44,6 @@ export function getNextCutoffDateLabel(cutoffDay: number) {
   const day = Number(
     new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta", day: "numeric" }).format(new Date()),
   );
-  const monthOffset = day > cutoffDay ? 1 : 0;
+  const monthOffset = day >= cutoffDay ? 1 : 0;
   return `${cutoffDay} ${getBulanLabel(monthOffset)}`;
 }

@@ -70,7 +70,7 @@ export async function SettingFinanceScheduleTab() {
               className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20"
             />
             <p className="text-xs text-slate-500">
-              Mulai tanggal ini setiap bulan, RAB Bulanan &amp; Iklan (selain Meta Ads) bulan berjalan otomatis disembunyikan dari daftar aktif dan pengajuan baru dianggarkan untuk bulan depan.
+              Mulai tanggal ini setiap bulan, pengajuan baru RAB Bulanan &amp; Iklan (selain Meta Ads) otomatis dianggarkan untuk bulan depan. Data bulan sebelumnya tidak hilang — tetap tersimpan dan bisa dilihat, hanya dikelompokkan per bulan di tampilan admin maupun karyawan.
             </p>
             <p className="rounded-lg bg-purple-50 px-3 py-2 text-xs font-medium text-purple-700">
               Periode aktif saat ini: <span className="font-bold">{currentBulan}</span>.

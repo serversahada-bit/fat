@@ -40,6 +40,15 @@ type Group = {
   latestCreatedAt: Date;
 };
 
+const NAMA_BULAN_ORDER = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+
+function bulanSortKey(label: string) {
+  const [name, yearStr] = label.split(" ");
+  const monthIndex = NAMA_BULAN_ORDER.indexOf(name);
+  const year = Number(yearStr) || 0;
+  return year * 12 + (monthIndex === -1 ? 0 : monthIndex);
+}
+
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("id-ID", {
     style: "currency",
@@ -121,7 +130,7 @@ export function BulananTable({ items }: { items: PengajuanBulanan[] }) {
   // any nearby month via EditableBulan, so new values can appear at any time.
   const bulanOptions = useMemo(() => {
     const seen = new Set(items.map((item) => item.bulan));
-    return Array.from(seen).sort();
+    return Array.from(seen).sort((a, b) => bulanSortKey(a) - bulanSortKey(b));
   }, [items]);
 
   const filteredItems = useMemo(() => {
