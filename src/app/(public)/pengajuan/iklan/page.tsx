@@ -1,12 +1,9 @@
 export const dynamic = "force-dynamic";
 
-import { Fragment } from "react";
 import { AppShell } from "@/components/AppShell";
 import { createKebutuhanIklan, createPeminjamanKuota, updatePeminjamanKuotaStatus } from "@/app/actions/pengajuan";
 import { getFinanceSubmissionSetting } from "@/app/actions/setting";
-import { FinanceSubmissionLauncher } from "@/components/FinanceSubmissionLauncher";
-import { UploadInvoiceButton } from "@/components/UploadInvoiceButton";
-import { EditableAmount } from "@/components/EditableAmount";
+import { PengajuanIklanTable } from "@/components/PengajuanIklanTable";
 import { CurrencyInput } from "@/components/CurrencyInput";
 import { EMPLOYEE_PERMISSIONS, requireEmployeePermission } from "@/lib/auth";
 import { getPreviousBulanLabel } from "@/lib/bulan";
@@ -21,14 +18,6 @@ function formatCurrency(amount: number) {
     currency: "IDR",
     minimumFractionDigits: 0,
   }).format(amount);
-}
-
-function formatDate(date: Date) {
-  return new Intl.DateTimeFormat("id-ID", {
-    timeZone: "Asia/Jakarta",
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(date);
 }
 
 function getTodayInJakarta() {
@@ -54,7 +43,6 @@ export default async function PengajuanIklanPage({
   
   const params = await searchParams;
   const isFormOpen = params?.baru === "true";
-  const currentTab = typeof params?.tab === "string" ? params.tab : "Semua";
 
   // Kebutuhan iklan diajukan tanggal 24 ke atas dianggarkan bulan berikutnya,
   // jadi RAB bulan lalu disembunyikan dari daftar aktif dan tidak dicampur
@@ -67,22 +55,11 @@ export default async function PengajuanIklanPage({
   ]);
   const previousBulan = getPreviousBulanLabel(currentBulan);
 
-  const statusFilter =
-    currentTab === "Pending" ? "PENDING" :
-    currentTab === "Disetujui" ? "APPROVED" :
-    currentTab === "Ditolak" ? "REJECTED" : undefined;
-
-  const whereClause: { userId: string; status?: "PENDING" | "APPROVED" | "REJECTED" } = {
-    userId: session.user.id,
-  };
-
-  if (statusFilter) {
-    whereClause.status = statusFilter;
-  }
-
+  // Status dan bulan difilter di client (PengajuanIklanTable) supaya Ringkasan Kuota
+  // di atas selalu dihitung dari data lengkap, bukan ikut terpotong oleh filter tabel.
   const [daftarPengajuan, financeSubmissions, pinjamanMasuk, pinjamanKeluar, daftarAdvertiser, globalApprovedKebutuhan, semuaPlafon] = await Promise.all([
     prisma.kebutuhan_iklan.findMany({
-      where: whereClause,
+      where: { userId: session.user.id },
       orderBy: { createdAt: "desc" },
     }),
     prisma.semua_pengajuan.findMany({
@@ -193,24 +170,6 @@ export default async function PengajuanIklanPage({
     }
   }
 
-  function hasOutstandingKasbon(itemId: string) {
-    const financeData = financeDataMap.get(itemId);
-    if (!financeData) return false;
-    return financeData.transactions.some((tx) => tx.tipePengajuan === "KASBON" && !tx.invoice);
-  }
-
-  // daftarPengajuan (semua bulan) tetap dipakai untuk kalkulasi kuota di bawah
-  // karena Sisa Kuota Total bersifat akumulatif antar bulan. Yang ditampilkan di
-  // tabel hanya RAB bulan berjalan - kecuali RAB Meta Ads yang masih ada KASBON
-  // belum ber-invoice: billing Meta (kredit dulu, ditagih belakangan) belum
-  // benar-benar selesai meski periodenya sudah lewat, jadi tetap ditampilkan
-  // supaya tidak hilang dari radar Finance sebelum invoice-nya di-upload.
-  const daftarPengajuanBulanIni = daftarPengajuan.filter((item) => {
-    const isBulanAktif = item.bulan === (item.platform === "Meta Ads" ? currentBulanMeta : currentBulan);
-    if (isBulanAktif) return true;
-    return item.platform === "Meta Ads" && hasOutstandingKasbon(item.id);
-  });
-
   const ratioPerBulan = new Map<string, number>();
   for (const group of globalApprovedKebutuhan) {
     const bulan = group.bulan;
@@ -258,6 +217,13 @@ export default async function PengajuanIklanPage({
   pinjamanKeluar.forEach(p => { if (p.status === "DISETUJUI") totalPinjamanKeluar += p.nominal; });
 
   const totalSisaKuota = totalRabEfisiensi + totalPinjamanMasuk - totalRealisasiKeseluruhan - totalPinjamanKeluar;
+
+  const rows = daftarPengajuan.map((item) => {
+    const financeData = financeDataMap.get(item.id) ?? null;
+    const totalRealisasi = financeData?.totalRealisasi ?? 0;
+    const sisaBudget = (item.total ?? 0) - totalRealisasi;
+    return { item, financeData, totalRealisasi, sisaBudget };
+  });
 
   const headerActions = (
     <div className="flex w-full items-center gap-3 md:w-auto">
@@ -489,193 +455,22 @@ export default async function PengajuanIklanPage({
         </section>
 
         <section className="shadow-card rounded-2xl border border-slate-200 bg-white p-4 md:p-8">
-          <div className="mb-6 flex flex-col justify-between gap-4 border-b border-slate-100 pb-6 sm:flex-row sm:items-center">
-            <div className="flex flex-wrap items-center gap-2">
-              {["Semua", "Pending", "Disetujui", "Ditolak"].map((tab) => (
-                <Link
-                  key={tab}
-                  href={`/pengajuan/iklan?tab=${tab}`}
-                  className={`rounded-full px-4 py-2 text-sm font-semibold transition-all ${currentTab === tab ? "gradient-brand text-white shadow-md shadow-purple-600/25" : "bg-transparent text-slate-500 hover:bg-slate-100"}`}
-                >
-                  {tab}
-                </Link>
-              ))}
-            </div>
-            <button className="hidden items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 sm:flex">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
-              Filter
-            </button>
-          </div>
-
-          {daftarPengajuanBulanIni.length === 0 ? (
+          {daftarPengajuan.length === 0 ? (
             <div className="py-12 text-center text-slate-500">
-              Belum ada data kebutuhan iklan bulan ini.
+              Belum ada data kebutuhan iklan.
             </div>
           ) : (
-            <div className="custom-scrollbar overflow-x-auto rounded-xl border border-slate-200">
-              <table className="min-w-[1000px] w-full border-collapse whitespace-nowrap text-left">
-                <thead className="gradient-brand text-xs uppercase tracking-wider text-white">
-                  <tr>
-                    <th className="px-4 py-4 text-center font-semibold">STATUS</th>
-                    <th className="px-4 py-4 text-center font-semibold">PLATFORM</th>
-                    <th className="px-4 py-4 text-center font-semibold">DIVISI</th>
-                    <th className="px-4 py-4 text-center font-semibold">PIC</th>
-                    <th className="px-4 py-4 font-semibold">KAMPANYE / URAIAN</th>
-                    <th className="px-4 py-4 text-center font-semibold">QTY</th>
-                    <th className="px-4 py-4 text-center font-semibold">SATUAN</th>
-                    <th className="px-4 py-4 text-right font-semibold">BUDGET SATUAN (Rp)</th>
-                    <th className="px-4 py-4 text-right font-semibold">TOTAL BUDGET (RAB)</th>
-                    <th className="px-4 py-4 text-right font-semibold">REALISASI (Rp)</th>
-                    <th className="px-4 py-4 text-right font-semibold">SISA BUDGET (Rp)</th>
-                    <th className="px-4 py-4 font-semibold">CATATAN</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 text-sm">
-                  {daftarPengajuanBulanIni.map((item: any) => {
-                    const financeData = financeDataMap.get(item.id) ?? null;
-                    const totalRealisasi = financeData?.totalRealisasi ?? 0;
-                    const rowSisaBudget = (item.total ?? 0) - totalRealisasi;
-
-                    return (
-                      <Fragment key={item.id}>
-                      <tr className="transition-colors hover:bg-slate-50">
-                        <td className="px-4 py-4 text-center">
-                          <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold ${
-                            item.status === "PENDING" ? "bg-amber-100 text-amber-600" :
-                            item.status === "APPROVED" ? "bg-emerald-100 text-emerald-600" :
-                            "bg-red-100 text-red-600"
-                          }`}>
-                            {item.status}
-                          </span>
-                          {item.totalSebelumDikurangi != null && (
-                            <div className="mt-2 rounded-lg border border-red-200 bg-red-50 px-2 py-1.5 text-left text-[11px] text-red-700">
-                              <div className="font-bold">⚠ Budget Dikurangi</div>
-                              <div className="mt-0.5">
-                                {formatCurrency(item.totalSebelumDikurangi)} → {formatCurrency(item.total)}
-                              </div>
-                              {item.alasanPengurangan && (
-                                <div className="mt-0.5 italic">&ldquo;{item.alasanPengurangan}&rdquo;</div>
-                              )}
-                              {item.waktuPengurangan && (
-                                <div className="mt-0.5 text-red-400">{formatDate(item.waktuPengurangan)}</div>
-                              )}
-                            </div>
-                          )}
-                          {item.status === "APPROVED" && (
-                            <div className="mt-2">
-                              <FinanceSubmissionLauncher
-                                defaultTanggal={today}
-                                keterangan={item.rincian}
-                                nominal={Math.min(rowSisaBudget, totalSisaKuota)}
-                                sourceId={item.id}
-                                sourceType="iklan"
-                                submittedStatus={financeData?.status}
-                                isManagerApproved={financeData?.isManagerApproved}
-                                userEmail={session.user.email ?? ""}
-                                userName={session.user.name ?? ""}
-                                sisaBudget={totalSisaKuota}
-                                hasPending={financeData?.hasPending ?? false}
-                                todayStr={today}
-                                financeSubmissionEnabled={financeSetting.financeSubmissionEnabled}
-                                financeSubmissionStartDate={financeSubmissionStartDateStr}
-                              />
-                            </div>
-                          )}
-                        </td>
-                        <td className="px-4 py-4 text-center">
-                          <span className="rounded-md bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
-                            {item.platform || "Meta Ads"}
-                          </span>
-                        </td>
-                        <td className="px-4 py-4 text-center text-slate-600">{item.divisi}</td>
-                        <td className="px-4 py-4 text-center text-slate-600">{item.pic}</td>
-                        <td className="min-w-[200px] whitespace-normal px-4 py-4">
-                          <div className="font-semibold text-slate-900">{item.rincian}</div>
-                          <div className="mt-0.5 text-xs text-slate-500">{item.bulan}</div>
-                        </td>
-                        <td className="px-4 py-4 text-center font-medium text-slate-700">
-                          <div className="flex items-center justify-center gap-1">
-                            <EditableAmount
-                              pengajuanId={item.id}
-                              initialValue={item.qty}
-                              field="qty"
-                              type="iklan"
-                              role="employee"
-                              isEditable={item.status === "PENDING"}
-                            />
-                          </div>
-                        </td>
-                        <td className="px-4 py-4 text-center text-slate-600">{item.satuan}</td>
-                        <td className="px-4 py-4 text-right text-slate-600">
-                          <div className="flex justify-end">
-                            <EditableAmount
-                              pengajuanId={item.id}
-                              initialValue={item.hargaSatuan}
-                              field="hargaSatuan"
-                              type="iklan"
-                              role="employee"
-                              isEditable={item.status === "PENDING"}
-                            />
-                          </div>
-                        </td>
-                        <td className="px-4 py-4 text-right font-bold text-slate-900">{formatCurrency(item.total)}</td>
-                        <td className="px-4 py-4 text-right font-semibold text-emerald-600">{formatCurrency(totalRealisasi)}</td>
-                        <td className="px-4 py-4 text-right font-bold text-amber-600">{formatCurrency(rowSisaBudget)}</td>
-                        <td className="min-w-[200px] whitespace-normal px-4 py-4 text-xs">
-                          {item.catatanTambahan && (
-                            <div className="mb-1.5">
-                              <span className="font-semibold text-slate-700">Karyawan:</span> <span className="text-slate-600">{item.catatanTambahan}</span>
-                            </div>
-                          )}
-                          {item.catatanAdmin && (
-                            <div className={`mt-1.5 border-t border-slate-100 pt-1.5 ${!item.catatanTambahan ? "border-none mt-0 pt-0" : ""}`}>
-                              <span className="font-semibold text-purple-700">Admin:</span> <span className="font-medium text-purple-600">{item.catatanAdmin}</span>
-                            </div>
-                          )}
-                          {!item.catatanTambahan && !item.catatanAdmin && <span className="text-slate-400">-</span>}
-                        </td>
-                      </tr>
-                      {financeData && financeData.transactions.length > 0 && (
-                        <tr key={`${item.id}-transactions`} className="bg-slate-50/60">
-                          <td colSpan={12} className="px-4 py-3">
-                            <div className="flex flex-wrap gap-3">
-                              {financeData.transactions.map((tx) => (
-                                <div key={tx.id} className="w-56 rounded-lg border border-slate-200 bg-white px-3 py-2 text-left text-[11px] shadow-sm">
-                                  {tx.keterangan && (
-                                    <div className="mb-1.5">
-                                      <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-400">
-                                        Berita Transaksi / Keterangan
-                                      </p>
-                                      <p className="line-clamp-2 text-[11px] font-semibold uppercase text-slate-800" title={tx.keterangan}>
-                                        {tx.keterangan}
-                                      </p>
-                                    </div>
-                                  )}
-                                  <div className="flex items-center justify-between gap-2">
-                                    <span className="font-semibold text-slate-700">{formatCurrency(tx.amount)}</span>
-                                    <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${
-                                      tx.tipePengajuan === "KASBON" ? "bg-amber-100 text-amber-700" : "bg-slate-200 text-slate-600"
-                                    }`}>
-                                      {tx.tipePengajuan || "-"}
-                                    </span>
-                                  </div>
-                                  {tx.tipePengajuan === "KASBON" && (
-                                    <div className="mt-1.5 flex justify-center">
-                                      <UploadInvoiceButton id={tx.id} initialValue={tx.invoice} isKasbon={true} />
-                                    </div>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                      </Fragment>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <PengajuanIklanTable
+              rows={rows}
+              currentBulan={currentBulan}
+              currentBulanMeta={currentBulanMeta}
+              totalSisaKuota={totalSisaKuota}
+              today={today}
+              userEmail={session.user.email ?? ""}
+              userName={session.user.name ?? ""}
+              financeSubmissionEnabled={financeSetting.financeSubmissionEnabled}
+              financeSubmissionStartDate={financeSubmissionStartDateStr}
+            />
           )}
         </section>
       </div>
