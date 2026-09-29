@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, Trash2, TrendingDown } from "lucide-react";
+import { Filter, Pencil, Trash2, TrendingDown } from "lucide-react";
 import { ApprovalDropdown } from "@/components/ApprovalDropdown";
 import { ApprovalNote } from "@/components/ApprovalNote";
 import { EditableAmount } from "@/components/EditableAmount";
@@ -55,6 +55,14 @@ function formatDate(date: Date) {
 
 const PLATFORM_OPTIONS = ["Meta Ads", "Google Ads", "TikTok Ads", "Snack Video", "Marketplace", "Marcom", "CRM", "CSO", "Lainnya"];
 const SATUAN_OPTIONS = ["UNIT", "PCS", "BOX", "ORANG", "BANDLE", "PACK", "BULANAN", "MINGGUAN", "HARI", "JAM", "LITER", "KG", "RIM", "SET", "VIDEO", "FOTO", "SHEETS", "DUS"];
+const NAMA_BULAN_ORDER = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+
+function bulanSortKey(label: string) {
+  const [name, yearStr] = label.split(" ");
+  const monthIndex = NAMA_BULAN_ORDER.indexOf(name);
+  const year = Number(yearStr) || 0;
+  return year * 12 + (monthIndex === -1 ? 0 : monthIndex);
+}
 
 function EditableBulanIklan({ pengajuanId, bulan }: { pengajuanId: string; bulan: string }) {
   const router = useRouter();
@@ -207,10 +215,24 @@ export function IklanTable({ items }: { items: PengajuanIklan[] }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [isPending, startTransition] = useTransition();
   const [editingItem, setEditingItem] = useState<PengajuanIklan | null>(null);
+  const [bulanFilter, setBulanFilter] = useState<string>("SEMUA");
   const headerCheckboxRef = useRef<HTMLInputElement>(null);
 
   // Correction range covers the realistic mistagging window: last, current, and next month.
   const bulanBulkOptions = [getBulanLabel(-1), getBulanLabel(0), getBulanLabel(1)];
+
+  // Bulan options are derived from whatever bulan values actually exist in this
+  // dataset (rather than a fixed list) since admin can reassign an item's bulan to
+  // any nearby month via EditableBulanIklan, so new values can appear at any time.
+  const bulanOptions = useMemo(() => {
+    const seen = new Set(items.map((item) => item.bulan));
+    return Array.from(seen).sort((a, b) => bulanSortKey(a) - bulanSortKey(b));
+  }, [items]);
+
+  const filteredItems = useMemo(() => {
+    if (bulanFilter === "SEMUA") return items;
+    return items.filter((item) => item.bulan === bulanFilter);
+  }, [items, bulanFilter]);
 
   useEffect(() => {
     setSelected((prev) => {
@@ -220,7 +242,7 @@ export function IklanTable({ items }: { items: PengajuanIklan[] }) {
     });
   }, [items]);
 
-  const allSelected = items.length > 0 && selected.size === items.length;
+  const allSelected = filteredItems.length > 0 && filteredItems.every((item) => selected.has(item.id));
   const someSelected = selected.size > 0 && !allSelected;
 
   useEffect(() => {
@@ -230,7 +252,15 @@ export function IklanTable({ items }: { items: PengajuanIklan[] }) {
   }, [someSelected]);
 
   function toggleAll() {
-    setSelected(allSelected ? new Set() : new Set(items.map((item) => item.id)));
+    setSelected((prev) => {
+      const filteredIds = filteredItems.map((item) => item.id);
+      if (allSelected) {
+        const next = new Set(prev);
+        filteredIds.forEach((id) => next.delete(id));
+        return next;
+      }
+      return new Set([...Array.from(prev), ...filteredIds]);
+    });
   }
 
   function toggleOne(id: string) {
@@ -281,6 +311,30 @@ export function IklanTable({ items }: { items: PengajuanIklan[] }) {
 
   return (
     <div className="flex flex-col gap-4">
+      {bulanOptions.length > 1 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
+            <Filter className="h-3.5 w-3.5" />
+            Filter:
+          </span>
+          <select
+            value={bulanFilter}
+            onChange={(e) => setBulanFilter(e.target.value)}
+            className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600 outline-none focus:border-purple-500"
+          >
+            <option value="SEMUA">Semua Bulan</option>
+            {bulanOptions.map((bulan) => (
+              <option key={bulan} value={bulan}>{bulan}</option>
+            ))}
+          </select>
+          {bulanFilter !== "SEMUA" && (
+            <span className="text-xs text-slate-400">
+              Menampilkan {filteredItems.length} dari {items.length} pengajuan
+            </span>
+          )}
+        </div>
+      )}
+
       {selected.size > 0 && (
         <div className="flex flex-col gap-3 rounded-xl border border-purple-200 bg-purple-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
           <span className="text-sm font-semibold text-purple-700">{selected.size} baris dipilih</span>
@@ -340,7 +394,14 @@ export function IklanTable({ items }: { items: PengajuanIklan[] }) {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 text-sm">
-            {items.map((item) => {
+            {filteredItems.length === 0 && (
+              <tr>
+                <td colSpan={12} className="px-4 py-10 text-center text-sm text-slate-500">
+                  Tidak ada pengajuan yang cocok dengan filter ini.
+                </td>
+              </tr>
+            )}
+            {filteredItems.map((item) => {
               const isEditableByDoubleClick = item.status === "PENDING";
               return (
                 <tr
