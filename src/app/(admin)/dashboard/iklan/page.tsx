@@ -74,11 +74,6 @@ export default async function ApprovalIklanPage({
     currentTab === "CRM" ? "CRM" :
     currentTab === "CSO" ? "CSO" : undefined;
 
-  const whereClause: { platform?: string } = {};
-  if (platformFilter) {
-    whereClause.platform = platformFilter;
-  }
-
   const reportTitleMap: Record<string, string> = {
     Semua: "RENCANA ANGGARAN & BIAYA (SEMUA PLATFORM IKLAN)",
     "Meta Ads": "RENCANA ANGGARAN & BIAYA (META ADS)",
@@ -87,13 +82,7 @@ export default async function ApprovalIklanPage({
     "Snack Video": "RENCANA ANGGARAN & BIAYA (SNACK VIDEO)",
     "Marketplace": "RENCANA ANGGARAN & BIAYA (MARKETPLACE)",
   };
-  const reportTitle = reportTitleMap[currentTab] || `RENCANA ANGGARAN & BIAYA (${currentTab})`;
-
-  const daftarPengajuan: PengajuanIklan[] = await prisma.kebutuhan_iklan.findMany({
-    where: whereClause,
-    orderBy: { createdAt: "desc" },
-    include: { user: true },
-  });
+  const baseReportTitle = reportTitleMap[currentTab] || `RENCANA ANGGARAN & BIAYA (${currentTab})`;
 
   const currentBulan = getBulanLabel(0);
 
@@ -116,6 +105,22 @@ export default async function ApprovalIklanPage({
   const bulanParam = typeof params?.bulan === "string" ? params.bulan : undefined;
   const selectedBulan = bulanParam && bulanOptionsSet.has(bulanParam) ? bulanParam : currentBulan;
 
+  // Table and PDF export are scoped to the same selected bulan as the Plafon summary
+  // above, so the banner's month picker actually controls what's listed/printed
+  // instead of only the summary numbers.
+  const whereClause: { platform?: string; bulan: string } = { bulan: selectedBulan };
+  if (platformFilter) {
+    whereClause.platform = platformFilter;
+  }
+
+  const daftarPengajuan: PengajuanIklan[] = await prisma.kebutuhan_iklan.findMany({
+    where: whereClause,
+    orderBy: { createdAt: "desc" },
+    include: { user: true },
+  });
+
+  const reportTitle = `${baseReportTitle} - ${selectedBulan.toUpperCase()}`;
+
   const plafonBulanIni = await prisma.plafon_iklan.findUnique({
     where: { bulan: selectedBulan }
   });
@@ -126,6 +131,17 @@ export default async function ApprovalIklanPage({
   });
   const totalRABHitungOtomatis = totalPengajuanBulanIni._sum.total || 0;
   const totalRABBulanIni = plafonBulanIni?.totalPengajuanRabOverride ?? totalRABHitungOtomatis;
+
+  // Recap of the currently filtered submissions (selected bulan + platform tab),
+  // broken down by divisi, so admins can see which division is driving the month's
+  // ad spend without adding up rows in the table themselves.
+  const totalPerDivisiMap = daftarPengajuan.reduce<Record<string, number>>((acc, item) => {
+    acc[item.divisi] = (acc[item.divisi] || 0) + item.total;
+    return acc;
+  }, {});
+  const totalPerDivisi = Object.entries(totalPerDivisiMap)
+    .map(([divisi, total]) => ({ divisi, total }))
+    .sort((a, b) => b.total - a.total);
 
   return (
     <AppShell user={session.user}
@@ -213,9 +229,28 @@ export default async function ApprovalIklanPage({
             <ExportPDFButton data={daftarPengajuan} title={reportTitle} kategori={currentTab === "Semua" ? "Iklan" : currentTab} />
           </div>
 
+          {totalPerDivisi.length > 0 && (
+            <div className="mb-6">
+              <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                Total per Divisi &middot; {selectedBulan}
+              </div>
+              <div className="flex flex-wrap gap-3">
+                {totalPerDivisi.map(({ divisi, total }) => (
+                  <div
+                    key={divisi}
+                    className="min-w-[160px] flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3"
+                  >
+                    <div className="text-xs font-semibold uppercase tracking-wider text-slate-500">{divisi}</div>
+                    <div className="mt-1 text-lg font-bold text-slate-900">{formatCurrency(total)}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {daftarPengajuan.length === 0 ? (
             <div className="py-12 text-center text-slate-500">
-              Belum ada data pengajuan iklan di platform ini.
+              Belum ada data pengajuan iklan di platform ini untuk bulan {selectedBulan}.
             </div>
           ) : (
             <IklanTable items={daftarPengajuan} />
