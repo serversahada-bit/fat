@@ -784,3 +784,19 @@ export async function updateTotalPengajuanRab(formData: FormData) {
 
   revalidatePath("/dashboard/iklan");
 }
+
+// Lets admin prepare a future month's plafon (e.g. October while still in September)
+// ahead of any submission — kebutuhan_iklan submissions otherwise create this row lazily.
+export async function createPlafonBulan(formData: FormData) {
+  await requireAdminPermission(DASHBOARD_PERMISSIONS.IKLAN);
+
+  const bulan = String(formData.get("bulan") ?? "").trim();
+  if (!bulan) return;
+
+  const existing = await prisma.plafon_iklan.findUnique({ where: { bulan } });
+  if (!existing) {
+    await prisma.plafon_iklan.create({ data: { bulan, status: "DRAFT" } });
+  }
+
+  revalidatePath("/dashboard/iklan");
+}

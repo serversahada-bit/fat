@@ -88,6 +88,26 @@ function formatDateTimeInput(date: Date | null | undefined) {
   return `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}`;
 }
 
+const NAMA_BULAN = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+
+function getBulanKey(date: Date | null | undefined) {
+  if (!date) return null;
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Jakarta",
+    year: "numeric",
+    month: "2-digit",
+  }).formatToParts(date);
+  const year = parts.find((part) => part.type === "year")?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
+  if (!year || !month) return null;
+  return `${year}-${month}`;
+}
+
+function getBulanLabel(key: string) {
+  const [year, month] = key.split("-").map(Number);
+  return `${NAMA_BULAN[month - 1] ?? month} ${year}`;
+}
+
 export function SemuaPengajuanTable({
   items,
   pajakOptions,
@@ -105,6 +125,7 @@ export function SemuaPengajuanTable({
   const [viewItem, setViewItem] = useState<SemuaPengajuan | null>(null);
 
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [filterBulan, setFilterBulan] = useState("");
   const [filterTipePengajuan, setFilterTipePengajuan] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [filterVerifiedFinance, setFilterVerifiedFinance] = useState("");
@@ -113,10 +134,22 @@ export function SemuaPengajuanTable({
   const [filterTanggalSampai, setFilterTanggalSampai] = useState("");
   const [filterSearch, setFilterSearch] = useState("");
 
-  const isFilterActive = Boolean(filterTipePengajuan || filterStatus || filterVerifiedFinance || filterAdaPpn || filterTanggalDari || filterTanggalSampai || filterSearch);
+  const isFilterActive = Boolean(filterBulan || filterTipePengajuan || filterStatus || filterVerifiedFinance || filterAdaPpn || filterTanggalDari || filterTanggalSampai || filterSearch);
+
+  // Bulan options are derived from tanggalPermohonan values actually present in this
+  // dataset, newest month first, so the dropdown only ever shows months with data.
+  const bulanOptions = useMemo(() => {
+    const seen = new Set<string>();
+    items.forEach((item) => {
+      const key = getBulanKey(item.tanggalPermohonan);
+      if (key) seen.add(key);
+    });
+    return Array.from(seen).sort((a, b) => b.localeCompare(a));
+  }, [items]);
 
   const filteredItems = useMemo(() => {
     return items.filter((item) => {
+      if (filterBulan && getBulanKey(item.tanggalPermohonan) !== filterBulan) return false;
       if (filterTipePengajuan && item.tipePengajuan !== filterTipePengajuan) return false;
       if (filterStatus && item.status !== filterStatus) return false;
       if (filterVerifiedFinance && item.verifiedFinance !== filterVerifiedFinance) return false;
@@ -139,9 +172,10 @@ export function SemuaPengajuanTable({
 
       return true;
     });
-  }, [items, filterTipePengajuan, filterStatus, filterVerifiedFinance, filterAdaPpn, filterTanggalDari, filterTanggalSampai, filterSearch]);
+  }, [items, filterBulan, filterTipePengajuan, filterStatus, filterVerifiedFinance, filterAdaPpn, filterTanggalDari, filterTanggalSampai, filterSearch]);
 
   function resetFilters() {
+    setFilterBulan("");
     setFilterTipePengajuan("");
     setFilterStatus("");
     setFilterVerifiedFinance("");
@@ -224,7 +258,21 @@ export function SemuaPengajuanTable({
         </div>
 
         {isFilterOpen && (
-          <div className="grid grid-cols-1 gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2 lg:grid-cols-7">
+          <div className="grid grid-cols-1 gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2 lg:grid-cols-8">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold text-slate-600">Bulan Permohonan</label>
+              <select
+                value={filterBulan}
+                onChange={(e) => setFilterBulan(e.target.value)}
+                className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20"
+              >
+                <option value="">Semua Bulan</option>
+                {bulanOptions.map((key) => (
+                  <option key={key} value={key}>{getBulanLabel(key)}</option>
+                ))}
+              </select>
+            </div>
+
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-semibold text-slate-600">Tipe Pengajuan</label>
               <select
@@ -312,7 +360,7 @@ export function SemuaPengajuanTable({
             </div>
 
             {isFilterActive && (
-              <div className="flex items-end sm:col-span-2 lg:col-span-7">
+              <div className="flex items-end sm:col-span-2 lg:col-span-8">
                 <button
                   type="button"
                   onClick={resetFilters}

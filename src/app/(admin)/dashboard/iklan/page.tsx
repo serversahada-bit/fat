@@ -5,11 +5,21 @@ import { EditablePlafonAmount } from "@/components/EditablePlafonAmount";
 import { EditableTotalPengajuanRab } from "@/components/EditableTotalPengajuanRab";
 import { ExportPDFButton } from "@/components/ExportPDFButton";
 import { IklanTable } from "@/components/IklanTable";
+import { PlafonBulanSelect } from "@/components/PlafonBulanSelect";
+import { createPlafonBulan } from "@/app/actions/pengajuan";
 import { DASHBOARD_PERMISSIONS, requireAdminPermission } from "@/lib/auth";
 import { getBulanLabel } from "@/lib/bulan";
 import { prisma } from "@/lib/prisma";
 import { getVisibleDashboardNavItems } from "@/lib/permissions";
 import Link from "next/link";
+
+const NAMA_BULAN = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+
+function bulanSortKey(bulan: string) {
+  const [namaBulan, tahun] = bulan.split(" ");
+  const bulanIndex = NAMA_BULAN.indexOf(namaBulan);
+  return Number(tahun) * 12 + (bulanIndex === -1 ? 0 : bulanIndex);
+}
 
 type PengajuanStatus = "PENDING" | "APPROVED" | "REJECTED";
 
@@ -87,12 +97,31 @@ export default async function ApprovalIklanPage({
 
   const currentBulan = getBulanLabel(0);
 
+  // Recap month is selectable independently of the platform tab, so admins can look
+  // back at a past month's Plafon Iklan summary after the calendar rolls over — the
+  // banner would otherwise always show the current month with no way back.
+  const plafonBulanRecords = await prisma.plafon_iklan.findMany({ select: { bulan: true } });
+  const kebutuhanBulanRecords = await prisma.kebutuhan_iklan.findMany({
+    select: { bulan: true },
+    distinct: ["bulan"],
+  });
+  const bulanOptionsSet = new Set<string>([
+    currentBulan,
+    getBulanLabel(1),
+    ...plafonBulanRecords.map((p) => p.bulan),
+    ...kebutuhanBulanRecords.map((k) => k.bulan),
+  ]);
+  const bulanOptions = Array.from(bulanOptionsSet).sort((a, b) => bulanSortKey(b) - bulanSortKey(a));
+
+  const bulanParam = typeof params?.bulan === "string" ? params.bulan : undefined;
+  const selectedBulan = bulanParam && bulanOptionsSet.has(bulanParam) ? bulanParam : currentBulan;
+
   const plafonBulanIni = await prisma.plafon_iklan.findUnique({
-    where: { bulan: currentBulan }
+    where: { bulan: selectedBulan }
   });
 
   const totalPengajuanBulanIni = await prisma.kebutuhan_iklan.aggregate({
-    where: { bulan: currentBulan },
+    where: { bulan: selectedBulan },
     _sum: { total: true }
   });
   const totalRABHitungOtomatis = totalPengajuanBulanIni._sum.total || 0;
@@ -111,10 +140,13 @@ export default async function ApprovalIklanPage({
           </div>
           <div className="relative z-10 flex flex-col justify-between gap-6 md:flex-row md:items-center">
             <div>
-              <h2 className="text-xl font-bold">Ringkasan Plafon Iklan ({currentBulan})</h2>
-              <p className="mt-1 text-purple-100">Pantau total pengajuan dan kelola budget final (Plafon Induk) bulan ini.</p>
+              <div className="flex flex-wrap items-center gap-3">
+                <h2 className="text-xl font-bold">Ringkasan Plafon Iklan</h2>
+                <PlafonBulanSelect options={bulanOptions} value={selectedBulan} />
+              </div>
+              <p className="mt-1 text-purple-100">Pantau total pengajuan dan kelola budget final (Plafon Induk) bulan {selectedBulan}.</p>
             </div>
-            
+
             <div className="flex flex-wrap gap-4">
               <div className="rounded-xl bg-black/20 p-4 backdrop-blur-sm">
                 <div className="text-xs font-semibold uppercase tracking-wider text-purple-200">Total Pengajuan (RAB)</div>
@@ -139,12 +171,20 @@ export default async function ApprovalIklanPage({
                 <div className="text-xs font-semibold uppercase tracking-wider text-purple-100">Budget Plafon Final Disetujui</div>
                 <div className="mt-1">
                   {plafonBulanIni ? (
-                    <EditablePlafonAmount 
-                      plafonId={plafonBulanIni.id} 
-                      initialValue={plafonBulanIni.totalPlafon} 
+                    <EditablePlafonAmount
+                      plafonId={plafonBulanIni.id}
+                      initialValue={plafonBulanIni.totalPlafon}
                     />
                   ) : (
-                    <div className="text-sm italic text-purple-200 mt-2">Belum ada pengajuan bulan ini</div>
+                    <form action={createPlafonBulan} className="mt-2">
+                      <input type="hidden" name="bulan" value={selectedBulan} />
+                      <button
+                        type="submit"
+                        className="rounded-lg border border-white/30 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-white/20"
+                      >
+                        Siapkan Plafon {selectedBulan}
+                      </button>
+                    </form>
                   )}
                 </div>
               </div>
@@ -158,7 +198,7 @@ export default async function ApprovalIklanPage({
               {["Semua", "Meta Ads", "Google Ads", "TikTok Ads", "Snack Video", "Marketplace", "Marcom", "CRM", "CSO"].map((tab) => (
                 <Link
                   key={tab}
-                  href={`/dashboard/iklan?tab=${tab}`}
+                  href={`/dashboard/iklan?tab=${tab}${bulanParam ? `&bulan=${encodeURIComponent(bulanParam)}` : ""}`}
                   className={`rounded-full px-4 py-2 text-sm font-semibold transition-all ${
                     currentTab === tab
                       ? "gradient-brand text-white shadow-md shadow-purple-600/25"
