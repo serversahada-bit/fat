@@ -10,7 +10,7 @@ import { deleteKebutuhanBulananBulk, updateKebutuhanBulananStatusBulk } from "@/
 
 type PengajuanStatus = "PENDING" | "APPROVED" | "REJECTED";
 
-type PengajuanBulanan = {
+export type PengajuanBulanan = {
   id: string;
   userId: string;
   bulan: string;
@@ -117,12 +117,19 @@ function groupItems(items: PengajuanBulanan[]): Group[] {
   return orderedGroups;
 }
 
-export function BulananTable({ items }: { items: PengajuanBulanan[] }) {
+export function BulananTable({
+  items,
+  bulanFilter,
+  onBulanFilterChange,
+}: {
+  items: PengajuanBulanan[];
+  bulanFilter: string;
+  onBulanFilterChange: (bulan: string) => void;
+}) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [isPending, startTransition] = useTransition();
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [statusFilter, setStatusFilter] = useState<PengajuanStatus | "SEMUA">("SEMUA");
-  const [bulanFilter, setBulanFilter] = useState<string>("SEMUA");
   const headerCheckboxRef = useRef<HTMLInputElement>(null);
 
   // Bulan options are derived from whatever bulan values actually exist in this
@@ -329,7 +336,7 @@ export function BulananTable({ items }: { items: PengajuanBulanan[] }) {
         {bulanOptions.length > 1 && (
           <select
             value={bulanFilter}
-            onChange={(e) => setBulanFilter(e.target.value)}
+            onChange={(e) => onBulanFilterChange(e.target.value)}
             className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600 outline-none focus:border-purple-500"
           >
             <option value="SEMUA">Semua Bulan</option>
