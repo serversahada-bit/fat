@@ -75,6 +75,7 @@ model user {
   pinjamanMasuk             peminjaman_kuota_iklan[]    @relation("PemberiPinjaman")
   realisasi_manual          realisasi_manual[]
   catatan_realisasi_pribadi catatan_realisasi_pribadi[]
+  catatan_saldo_iklan       catatan_saldo_iklan[]
 }
 
 model pengajuan {
@@ -327,3 +328,31 @@ model catatan_realisasi_pribadi {
 
   @@index([userId])
 }
+
+model catatan_saldo_iklan {
+  id             String   @id @default(cuid())
+  userId         String
+  bulan          String?
+  divisi         String?
+  pic            String?
+  tipeBiaya      String?
+  uraian         String?
+  qty            Float?
+  satuan         String?
+  hargaSatuan    Float?
+  total          Float?
+  sisaSaldoAwal  Float?
+  topUpSaldo     Float?
+  sisaSaldoAkhir Float?
+  realisasi      Float?
+  catatan        String?  @db.Text
+  buktiSaldo     String?  @db.Text
+  urutan         Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user user @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+

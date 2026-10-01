@@ -4,6 +4,12 @@ import { AppShell } from "@/components/AppShell";
 import { CatatanPribadiCell } from "@/components/CatatanPribadiCell";
 import { AddCatatanPribadiButton } from "@/components/AddCatatanPribadiButton";
 import { DeleteCatatanPribadiButton } from "@/components/DeleteCatatanPribadiButton";
+import { CatatanSaldoCell } from "@/components/CatatanSaldoCell";
+import { AddCatatanSaldoButton } from "@/components/AddCatatanSaldoButton";
+import { DeleteCatatanSaldoButton } from "@/components/DeleteCatatanSaldoButton";
+import { UploadBuktiSaldoButton } from "@/components/UploadBuktiSaldoButton";
+import { RealisasiRabTables } from "@/components/RealisasiRabTables";
+import { getBulanLabel } from "@/lib/bulan";
 import { EMPLOYEE_PERMISSIONS, requireEmployeePermission } from "@/lib/auth";
 import { getVisibleEmployeeNavItems } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
@@ -19,18 +25,6 @@ function formatCurrency(amount: number) {
     currency: "IDR",
     minimumFractionDigits: 0,
   }).format(amount);
-}
-
-function formatDateTime(date: Date | null | undefined) {
-  if (!date) return "-";
-  return `${new Intl.DateTimeFormat("id-ID", {
-    timeZone: "Asia/Jakarta",
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date)} WIB`;
 }
 
 function bulanOf(date: Date) {
@@ -78,6 +72,7 @@ type IklanDetailRow = BulananDetailRow & { platform: string; rabEfisiensi: numbe
 type ItemDetailRow = {
   id: string;
   sourceType: "bulanan" | "iklan";
+  bulan: string;
   divisi: string;
   tipeBiaya: string;
   uraian: string;
@@ -179,6 +174,7 @@ export default async function RealisasiRabPage() {
     pinjamanMasuk,
     pinjamanKeluar,
     catatanPribadi,
+    catatanSaldo,
   ] = await Promise.all([
     prisma.kebutuhan_bulanan.findMany({
       where: { userId: session.user.id },
@@ -226,6 +222,10 @@ export default async function RealisasiRabPage() {
       select: { nominal: true, createdAt: true },
     }),
     prisma.catatan_realisasi_pribadi.findMany({
+      where: { userId: session.user.id },
+      orderBy: [{ urutan: "asc" }, { createdAt: "asc" }],
+    }),
+    prisma.catatan_saldo_iklan.findMany({
       where: { userId: session.user.id },
       orderBy: [{ urutan: "asc" }, { createdAt: "asc" }],
     }),
@@ -313,6 +313,7 @@ export default async function RealisasiRabPage() {
     itemRows.push({
       id: item.id,
       sourceType: "bulanan",
+      bulan: item.bulan,
       divisi: item.divisi,
       tipeBiaya: item.kategori || "OPS RT",
       uraian: item.rincian,
@@ -339,6 +340,7 @@ export default async function RealisasiRabPage() {
     itemRows.push({
       id: item.id,
       sourceType: "iklan",
+      bulan: item.bulan,
       divisi: item.divisi,
       tipeBiaya: item.platform || "Meta Ads",
       uraian: item.rincian,
@@ -369,15 +371,11 @@ export default async function RealisasiRabPage() {
     });
   }
 
-  itemRows.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-
-  const itemTotal = itemRows.reduce(
-    (acc, item) => ({
-      total: acc.total + item.total,
-      realisasi: acc.realisasi + item.realisasi,
-    }),
-    { total: 0, realisasi: 0 },
-  );
+  itemRows.sort((a, b) => {
+    const bulanDiff = bulanSortKey(a.bulan) - bulanSortKey(b.bulan);
+    if (bulanDiff !== 0) return bulanDiff;
+    return a.createdAt.getTime() - b.createdAt.getTime();
+  });
 
   // ---- ledger saldo kuota iklan per bulan (mengikuti logika efisiensi plafon di /pengajuan/iklan) ----
   const rabEfisiensiPerBulan = new Map<string, number>();
@@ -426,6 +424,20 @@ export default async function RealisasiRabPage() {
     .filter((line) => line.at !== null)
     .sort((a, b) => (b.at as Date).getTime() - (a.at as Date).getTime());
 
+  // ---- opsi bulan untuk dropdown Saldo Kuota Iklan: 6 bulan ke belakang s/d 1 bulan ke depan ----
+  const bulanPilihanSaldo = Array.from({ length: 8 }, (_, i) => getBulanLabel(1 - i));
+
+  const riwayatIklanView = riwayatIklan.map((line) => ({
+    key: line.key,
+    bulan: line.bulan,
+    uraian: line.row.uraian,
+    keterangan: line.keterangan,
+    amount: line.amount,
+    at: line.at,
+    source: line.source,
+    sisaSaldoBulanIni: line.sisaSaldoBulanIni,
+  }));
+
   return (
     <AppShell
       user={session.user}
@@ -433,103 +445,11 @@ export default async function RealisasiRabPage() {
       subtitle="Rincian per pengajuan RAB: total budget, realisasi, dan selisih dari kebutuhan bulanan dan iklan Anda."
       navItems={navItems}
     >
-      <section className="shadow-card rounded-2xl border border-slate-200 bg-white p-4 md:p-8">
-        {itemRows.length === 0 ? (
-          <div className="py-12 text-center text-slate-500">
-            Belum ada data RAB yang disetujui.
-          </div>
-        ) : (
-          <div className="custom-scrollbar overflow-x-auto rounded-xl border border-slate-200">
-            <table className="min-w-[1300px] w-full border-collapse whitespace-nowrap text-left">
-              <thead className="gradient-brand text-xs uppercase tracking-wider text-white">
-                <tr>
-                  <th className="px-4 py-4 font-semibold">DIVISI</th>
-                  <th className="px-4 py-4 font-semibold">TIPE BIAYA</th>
-                  <th className="px-4 py-4 font-semibold">RINCIAN / URAIAN</th>
-                  <th className="px-4 py-4 text-center font-semibold">QTY</th>
-                  <th className="px-4 py-4 text-center font-semibold">SATUAN</th>
-                  <th className="px-4 py-4 text-right font-semibold">HARGA SATUAN (Rp)</th>
-                  <th className="px-4 py-4 text-right font-semibold">TOTAL (Rp)</th>
-                  <th className="px-4 py-4 text-right font-semibold">REALISASI (Rp)</th>
-                  <th className="px-4 py-4 text-right font-semibold">SELISIH (Rp)</th>
-                  <th className="px-4 py-4 font-semibold">CATATAN TAMBAHAN</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-sm">
-                {itemRows.map((item) => (
-                  <tr key={item.id} className="transition-colors hover:bg-slate-50">
-                    <td className="px-4 py-4 text-slate-600">{item.divisi}</td>
-                    <td className="px-4 py-4 text-slate-600">{item.tipeBiaya}</td>
-                    <td className="min-w-[200px] whitespace-normal px-4 py-4 font-semibold text-slate-900">{item.uraian}</td>
-                    <td className="px-4 py-4 text-center text-slate-600">{item.qty}</td>
-                    <td className="px-4 py-4 text-center text-slate-600">{item.satuan}</td>
-                    <td className="px-4 py-4 text-right text-slate-600">{formatCurrency(item.hargaSatuan)}</td>
-                    <td className="px-4 py-4 text-right font-bold text-slate-900">{formatCurrency(item.total)}</td>
-                    <td className="px-4 py-4 text-right font-semibold text-emerald-600">{formatCurrency(item.realisasi)}</td>
-                    <td className="px-4 py-4 text-right font-bold text-amber-600">{formatCurrency(item.total - item.realisasi)}</td>
-                    <td className="min-w-[200px] whitespace-normal px-4 py-4">
-                      {item.catatanTambahan ?? <span className="text-slate-400">Belum direalisasikan</span>}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className="border-t-2 border-slate-200 bg-slate-50 text-sm">
-                  <td className="px-4 py-4 font-bold text-slate-900" colSpan={6}>TOTAL</td>
-                  <td className="px-4 py-4 text-right font-bold text-slate-900">{formatCurrency(itemTotal.total)}</td>
-                  <td className="px-4 py-4 text-right font-bold text-emerald-700">{formatCurrency(itemTotal.realisasi)}</td>
-                  <td className="px-4 py-4 text-right font-bold text-amber-700">{formatCurrency(itemTotal.total - itemTotal.realisasi)}</td>
-                  <td className="px-4 py-4"></td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        )}
-      </section>
-
-      {/* ---- Riwayat Realisasi Iklan ---- */}
-      <section className="shadow-card mt-6 rounded-2xl border border-slate-200 bg-white p-4 md:p-8">
-        <h2 className="mb-1 text-lg font-bold text-slate-800">Riwayat Realisasi — Kebutuhan Iklan</h2>
-        <p className="mb-4 text-sm text-slate-500">Daftar transaksi yang sudah direalisasikan, terbaru di atas.</p>
-        {riwayatIklan.length === 0 ? (
-          <div className="py-12 text-center text-slate-500">Belum ada transaksi yang direalisasikan.</div>
-        ) : (
-          <div className="custom-scrollbar overflow-x-auto rounded-xl border border-slate-200">
-            <table className="min-w-[900px] w-full border-collapse whitespace-nowrap text-left">
-              <thead className="bg-purple-600 text-xs uppercase tracking-wider text-white">
-                <tr>
-                  <th className="px-4 py-3 font-semibold">TANGGAL REALISASI</th>
-                  <th className="px-4 py-3 text-center font-semibold">BULAN RAB</th>
-                  <th className="px-4 py-3 font-semibold">RINCIAN / KETERANGAN</th>
-                  <th className="px-4 py-3 text-right font-semibold">REALISASI (Rp)</th>
-                  <th className="px-4 py-3 text-right font-semibold">SISA SALDO (Rp)</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-sm">
-                {riwayatIklan.map((line) => (
-                  <tr key={line.key} className="transition-colors hover:bg-slate-50">
-                    <td className="px-4 py-3 text-slate-600">{formatDateTime(line.at)}</td>
-                    <td className="px-4 py-3 text-center text-slate-600">{line.bulan}</td>
-                    <td className="min-w-[220px] whitespace-normal px-4 py-3">
-                      <div className="font-semibold text-slate-900">{line.row.uraian}</div>
-                      <div className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-500">
-                        <span>{line.keterangan}</span>
-                        {line.source === "manual" && (
-                          <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold uppercase text-amber-700">
-                            Manual
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-right font-semibold text-emerald-600">{formatCurrency(line.amount)}</td>
-                    <td className="px-4 py-3 text-right font-bold text-purple-700">{formatCurrency(line.sisaSaldoBulanIni)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+      <RealisasiRabTables
+        itemRows={itemRows}
+        riwayatIklan={riwayatIklanView}
+        defaultBulan={getBulanLabel(0)}
+      />
 
       {/* ---- Catatan Pribadi (bebas, tidak terhubung ke RAB) ---- */}
       <section className="shadow-card mt-6 rounded-2xl border border-slate-200 bg-white p-4 md:p-8">
@@ -587,6 +507,115 @@ export default async function RealisasiRabPage() {
 
         <div className="mt-4">
           <AddCatatanPribadiButton />
+        </div>
+      </section>
+
+      {/* ---- Saldo Kuota Iklan (manual, diisi sendiri) ---- */}
+      <section className="shadow-card mt-6 rounded-2xl border border-slate-200 bg-white p-4 md:p-8">
+        <h2 className="mb-1 text-lg font-bold text-slate-800">Saldo Kuota Iklan</h2>
+        <p className="mb-4 text-sm text-slate-500">
+          Rincian saldo kuota iklan yang diisi manual sendiri. Klik langsung pada sel untuk mengisi, seperti Excel.
+        </p>
+
+        <div className="custom-scrollbar overflow-x-auto rounded-xl border border-slate-200">
+          <table className="min-w-[1850px] w-full border-collapse whitespace-nowrap text-left">
+            <thead className="bg-slate-700 text-xs uppercase tracking-wider text-white">
+              <tr>
+                <th className="px-2 py-3 font-semibold">BULAN</th>
+                <th className="px-2 py-3 font-semibold">DIVISI</th>
+                <th className="px-2 py-3 font-semibold">TIPE BIAYA</th>
+                <th className="px-2 py-3 font-semibold">RINCIAN / URAIAN</th>
+                <th className="px-2 py-3 text-center font-semibold">QTY</th>
+                <th className="px-2 py-3 font-semibold">SATUAN</th>
+                <th className="px-2 py-3 text-right font-semibold">HARGA SATUAN (Rp)</th>
+                <th className="px-2 py-3 text-right font-semibold">TOTAL (Rp)</th>
+                <th className="px-2 py-3 text-right font-semibold">SISA SALDO</th>
+                <th className="px-2 py-3 text-right font-semibold">TOP-UP SALDO</th>
+                <th className="px-2 py-3 text-right font-semibold">SISA SALDO AKHIR</th>
+                <th className="px-2 py-3 text-right font-semibold">REALISASI (Rp)</th>
+                <th className="px-2 py-3 text-right font-semibold">SELISIH (Rp)</th>
+                <th className="px-2 py-3 font-semibold">CATATAN TAMBAHAN</th>
+                <th className="px-2 py-3 text-center font-semibold">BUKTI</th>
+                <th className="px-2 py-3 text-center font-semibold">AKSI</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 text-sm">
+              {catatanSaldo.map((row) => {
+                const total = row.total ?? 0;
+                const realisasi = row.realisasi ?? 0;
+                const hasAngka = row.total != null || row.realisasi != null;
+
+                const bulanOptionsForRow = row.bulan && !bulanPilihanSaldo.includes(row.bulan)
+                  ? [row.bulan, ...bulanPilihanSaldo]
+                  : bulanPilihanSaldo;
+
+                return (
+                  <tr key={row.id} className="transition-colors hover:bg-slate-50">
+                    <td className="p-1">
+                      <CatatanSaldoCell id={row.id} field="bulan" initialValue={row.bulan} type="select" options={bulanOptionsForRow} />
+                    </td>
+                    <td className="p-1"><CatatanSaldoCell id={row.id} field="divisi" initialValue={row.divisi} /></td>
+                    <td className="p-1"><CatatanSaldoCell id={row.id} field="tipeBiaya" initialValue={row.tipeBiaya} type="select" options={["RUTIN", "KONDISIONAL", "DARURAT"]} /></td>
+                    <td className="min-w-[180px] p-1"><CatatanSaldoCell id={row.id} field="uraian" initialValue={row.uraian} /></td>
+                    <td className="p-1"><CatatanSaldoCell id={row.id} field="qty" initialValue={row.qty} type="number" /></td>
+                    <td className="p-1">
+                      <CatatanSaldoCell
+                        id={row.id}
+                        field="satuan"
+                        initialValue={row.satuan}
+                        type="select"
+                        options={["UNIT", "PCS", "BOX", "ORANG", "BANDLE", "PACK", "BULANAN", "MINGGUAN", "HARI", "JAM", "LITER", "KG", "RIM", "SET", "VIDEO", "FOTO", "SHEETS", "DUS"]}
+                      />
+                    </td>
+                    <td className="p-1"><CatatanSaldoCell id={row.id} field="hargaSatuan" initialValue={row.hargaSatuan} type="number" /></td>
+                    <td className="p-1"><CatatanSaldoCell id={row.id} field="total" initialValue={row.total} type="number" /></td>
+                    <td className="p-1"><CatatanSaldoCell id={row.id} field="sisaSaldoAwal" initialValue={row.sisaSaldoAwal} type="number" /></td>
+                    <td className="p-1"><CatatanSaldoCell id={row.id} field="topUpSaldo" initialValue={row.topUpSaldo} type="number" /></td>
+                    <td className="p-1"><CatatanSaldoCell id={row.id} field="sisaSaldoAkhir" initialValue={row.sisaSaldoAkhir} type="number" /></td>
+                    <td className="p-1"><CatatanSaldoCell id={row.id} field="realisasi" initialValue={row.realisasi} type="number" /></td>
+                    <td className="px-2 py-1.5 text-right font-semibold text-amber-600">
+                      {hasAngka ? formatCurrency(total - realisasi) : <span className="italic text-slate-400">-</span>}
+                    </td>
+                    <td className="min-w-[180px] p-1"><CatatanSaldoCell id={row.id} field="catatan" initialValue={row.catatan} /></td>
+                    <td className="p-1">
+                      <UploadBuktiSaldoButton id={row.id} initialValue={row.buktiSaldo} />
+                    </td>
+                    <td className="px-2 py-1.5 text-center">
+                      <DeleteCatatanSaldoButton id={row.id} />
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+            <tfoot>
+              <tr className="border-t-2 border-slate-200 bg-slate-50 text-sm">
+                <td className="px-2 py-3 font-bold text-slate-900" colSpan={7}>TOTAL</td>
+                <td className="px-2 py-3 text-right font-bold text-slate-900">
+                  {formatCurrency(catatanSaldo.reduce((sum, r) => sum + (r.total ?? 0), 0))}
+                </td>
+                <td className="px-2 py-3 text-right font-bold text-slate-700">
+                  {formatCurrency(catatanSaldo.reduce((sum, r) => sum + (r.sisaSaldoAwal ?? 0), 0))}
+                </td>
+                <td className="px-2 py-3 text-right font-bold text-slate-700">
+                  {formatCurrency(catatanSaldo.reduce((sum, r) => sum + (r.topUpSaldo ?? 0), 0))}
+                </td>
+                <td className="px-2 py-3 text-right font-bold text-purple-700">
+                  {formatCurrency(catatanSaldo.reduce((sum, r) => sum + (r.sisaSaldoAkhir ?? 0), 0))}
+                </td>
+                <td className="px-2 py-3 text-right font-bold text-emerald-700">
+                  {formatCurrency(catatanSaldo.reduce((sum, r) => sum + (r.realisasi ?? 0), 0))}
+                </td>
+                <td className="px-2 py-3 text-right font-bold text-amber-700">
+                  {formatCurrency(catatanSaldo.reduce((sum, r) => sum + ((r.total ?? 0) - (r.realisasi ?? 0)), 0))}
+                </td>
+                <td className="px-2 py-3" colSpan={3}></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <div className="mt-4">
+          <AddCatatanSaldoButton />
         </div>
       </section>
     </AppShell>

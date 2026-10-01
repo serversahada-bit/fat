@@ -30,6 +30,12 @@ export const SUPER_ADMIN_PERMISSION_OPTIONS = [
     description: "Akses galeri bukti transfer dan lampiran pengajuan.",
   },
   {
+    permission: "dashboard.saldoIklan",
+    label: "Saldo Kuota Iklan",
+    href: "/dashboard/saldo-iklan",
+    description: "Akses rekap saldo kuota iklan manual semua karyawan.",
+  },
+  {
     permission: "dashboard.users",
     label: "Setting",
     href: "/dashboard/setting",
@@ -67,6 +73,12 @@ export const ADMIN_PERMISSION_OPTIONS = [
     label: "Galeri",
     href: "/dashboard/galeri",
     description: "Akses galeri bukti transfer dan lampiran pengajuan.",
+  },
+  {
+    permission: "dashboard.saldoIklan",
+    label: "Saldo Kuota Iklan",
+    href: "/dashboard/saldo-iklan",
+    description: "Akses rekap saldo kuota iklan manual semua karyawan.",
   },
 ] as const;
 
@@ -109,6 +121,7 @@ export const DASHBOARD_PERMISSIONS = {
   IKLAN: "dashboard.iklan",
   SEMUA: "dashboard.semua",
   GALERI: "dashboard.galeri",
+  SALDO_IKLAN: "dashboard.saldoIklan",
   USERS: "dashboard.users",
 } as const;
 
