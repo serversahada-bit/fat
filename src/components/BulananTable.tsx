@@ -7,6 +7,7 @@ import { ApprovalNote } from "@/components/ApprovalNote";
 import { EditableAmount } from "@/components/EditableAmount";
 import { EditableBulan } from "@/components/EditableBulan";
 import { deleteKebutuhanBulananBulk, updateKebutuhanBulananStatusBulk } from "@/app/actions/pengajuan";
+import { formatRincianProduk } from "@/lib/produk";
 
 type PengajuanStatus = "PENDING" | "APPROVED" | "REJECTED";
 
@@ -25,6 +26,7 @@ export type PengajuanBulanan = {
   status: PengajuanStatus;
   catatanTambahan: string | null;
   catatanAdmin: string | null;
+  produkInternal: string | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -272,7 +274,7 @@ export function BulananTable({
         <td className="px-4 py-4 text-center text-slate-600">{item.divisi}</td>
         <td className="px-4 py-4 text-center text-slate-600">{item.pic}</td>
         <td className={`min-w-[200px] whitespace-normal px-4 py-4 ${indented ? "pl-10" : ""}`}>
-          <div className="font-semibold text-slate-900">{item.rincian}</div>
+          <div className="font-semibold text-slate-900">{formatRincianProduk(item.rincian, item.produkInternal)}</div>
           <div className="mt-0.5 text-xs text-slate-500">
             Pengajuan untuk bulan <EditableBulan pengajuanId={item.id} initialBulan={item.bulan} />
           </div>
@@ -284,7 +286,7 @@ export function BulananTable({
         </td>
         <td className="px-4 py-4 text-right text-slate-600">
           <div className="flex justify-end">
-            <EditableAmount pengajuanId={item.id} initialValue={item.hargaSatuan} field="hargaSatuan" type="bulanan" isEditable={item.status === "PENDING"} />
+            <EditableAmount pengajuanId={item.id} initialValue={item.hargaSatuan} field="hargaSatuan" type="bulanan" isEditable={item.status === "PENDING" && !item.produkInternal} mustBePositive />
           </div>
         </td>
         <td className="px-4 py-4 text-right font-bold text-slate-900">{formatCurrency(item.total)}</td>

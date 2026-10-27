@@ -6,6 +6,17 @@ import { prisma } from "@/lib/prisma";
 import { DASHBOARD_PERMISSIONS, requireAdminPermission, requireRole } from "@/lib/auth";
 import { getBulanLabelWithCutoff, getMetaBulanLabelWithCutoff } from "@/lib/bulan-server";
 
+// Empty value means "Bukan Produk Internal". A chosen product must exist in master_produk
+// so the dropdown can't be bypassed with an arbitrary name to get a Rp 0 item through.
+async function resolveProdukInternal(value: FormDataEntryValue | null) {
+  const nama = String(value ?? "").trim();
+  if (!nama) return null;
+
+  const produk = await prisma.master_produk.findFirst({ where: { nama } });
+  if (!produk) throw new Error("Produk internal tidak ditemukan.");
+  return produk.nama;
+}
+
 export async function deleteKebutuhanBulananBulk(formData: FormData) {
   await requireAdminPermission(DASHBOARD_PERMISSIONS.BULANAN);
 
@@ -85,11 +96,17 @@ export async function createKebutuhanBulanan(formData: FormData) {
   const rincian = String(formData.get("rincian") ?? "").trim();
   const qty = parseInt(String(formData.get("qty") ?? "0"), 10);
   const satuan = String(formData.get("satuan") ?? "").trim();
-  const hargaSatuan = parseFloat(String(formData.get("hargaSatuan") ?? "0"));
   const catatanTambahan = String(formData.get("catatanTambahan") ?? "").trim();
+  const produkInternal = await resolveProdukInternal(formData.get("produkInternal"));
+  // Internal products (samples) are always Rp 0; everything else must have a real price.
+  const hargaSatuan = produkInternal ? 0 : parseFloat(String(formData.get("hargaSatuan") ?? "0"));
 
   if (!rincian || !qty || !satuan || isNaN(hargaSatuan)) {
     throw new Error("Semua field wajib diisi");
+  }
+
+  if (!produkInternal && hargaSatuan <= 0) {
+    throw new Error("Harga satuan harus lebih dari 0.");
   }
 
   const total = qty * hargaSatuan;
@@ -107,6 +124,7 @@ export async function createKebutuhanBulanan(formData: FormData) {
       hargaSatuan,
       total,
       catatanTambahan: catatanTambahan ? catatanTambahan : null,
+      produkInternal,
     }
   });
 
@@ -266,6 +284,9 @@ export async function updateKebutuhanBulananStatus(formData: FormData) {
   let newTotal = existing.total;
   let shouldUpdateTotal = false;
   let shouldUpdateHargaSatuan = false;
+  // Internal-product items stay at Rp 0, so their price/total can't be edited; for other
+  // items a new price/total has to stay above 0.
+  const isProdukInternal = Boolean(existing.produkInternal);
 
   if (canEditAmount) {
     if (formData.has("qty")) {
@@ -277,27 +298,29 @@ export async function updateKebutuhanBulananStatus(formData: FormData) {
       }
     }
 
-    if (formData.has("hargaSatuan")) {
+    if (formData.has("hargaSatuan") && !isProdukInternal) {
       const hargaSatuan = parseFloat(String(formData.get("hargaSatuan")));
       if (!isNaN(hargaSatuan)) {
+        if (hargaSatuan <= 0) throw new Error("Harga satuan harus lebih dari 0.");
         newHargaSatuan = hargaSatuan;
         updateData.hargaSatuan = hargaSatuan;
         shouldUpdateTotal = true;
       }
     }
 
-    if (formData.has("total")) {
+    if (formData.has("total") && !isProdukInternal) {
       const total = parseFloat(String(formData.get("total")));
       if (!isNaN(total)) {
+        if (total <= 0) throw new Error("Total harus lebih dari 0.");
         newTotal = total;
         updateData.total = total;
         shouldUpdateHargaSatuan = true;
       }
     }
 
-    if (shouldUpdateTotal && !formData.has("total")) {
+    if (shouldUpdateTotal && !("total" in updateData)) {
       updateData.total = newQty * newHargaSatuan;
-    } else if (shouldUpdateHargaSatuan && !formData.has("hargaSatuan") && newQty !== 0) {
+    } else if (shouldUpdateHargaSatuan && !("hargaSatuan" in updateData) && newQty !== 0) {
       updateData.hargaSatuan = newTotal / newQty;
     }
   }
@@ -429,6 +452,20 @@ export async function updateKebutuhanBulananEmployee(formData: FormData) {
   let newHargaSatuan = existing.hargaSatuan;
   let shouldUpdateTotal = false;
 
+  // Keeping the item's current product is always allowed (even if it was since renamed or
+  // removed from master_produk); only switching to a different one is checked.
+  let newProdukInternal = existing.produkInternal;
+  if (formData.has("produkInternal")) {
+    const produkValue = String(formData.get("produkInternal")).trim() || null;
+    newProdukInternal = produkValue === existing.produkInternal
+      ? existing.produkInternal
+      : await resolveProdukInternal(produkValue);
+    if (newProdukInternal !== existing.produkInternal) {
+      updateData.produkInternal = newProdukInternal;
+      shouldUpdateTotal = true;
+    }
+  }
+
   if (formData.has("qty")) {
     const qty = parseInt(String(formData.get("qty")), 10);
     if (!isNaN(qty) && qty > 0) {
@@ -438,13 +475,25 @@ export async function updateKebutuhanBulananEmployee(formData: FormData) {
     }
   }
 
-  if (formData.has("hargaSatuan")) {
+  if (newProdukInternal) {
+    // Internal products (samples) are always Rp 0, whatever price was sent.
+    if (newHargaSatuan !== 0) {
+      newHargaSatuan = 0;
+      updateData.hargaSatuan = 0;
+      shouldUpdateTotal = true;
+    }
+  } else if (formData.has("hargaSatuan")) {
     const hargaSatuan = parseFloat(String(formData.get("hargaSatuan")));
-    if (!isNaN(hargaSatuan) && hargaSatuan >= 0) {
+    if (!isNaN(hargaSatuan)) {
+      if (hargaSatuan <= 0) throw new Error("Harga satuan harus lebih dari 0.");
       newHargaSatuan = hargaSatuan;
       updateData.hargaSatuan = hargaSatuan;
       shouldUpdateTotal = true;
     }
+  }
+
+  if (!newProdukInternal && existing.produkInternal && newHargaSatuan <= 0) {
+    throw new Error("Harga satuan harus lebih dari 0 jika bukan produk internal.");
   }
 
   if (shouldUpdateTotal) {

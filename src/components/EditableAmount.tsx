@@ -24,6 +24,7 @@ export function EditableAmount({
   type = "bulanan",
   role = "admin",
   isEditable = true,
+  mustBePositive = false,
 }: {
   pengajuanId: string;
   initialValue: number;
@@ -31,6 +32,8 @@ export function EditableAmount({
   type?: "bulanan" | "iklan";
   role?: "admin" | "employee";
   isEditable?: boolean;
+  /** Reject 0 or negative values (reverts to the previous value instead of saving). */
+  mustBePositive?: boolean;
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [value, setValue] = useState(initialValue.toString());
@@ -49,6 +52,12 @@ export function EditableAmount({
     const numValue = parseFloat(value);
     
     if (isNaN(numValue) || numValue === initialValue) {
+      setValue(initialValue.toString());
+      return;
+    }
+
+    if (mustBePositive && numValue <= 0) {
+      window.alert("Nilai harus lebih dari 0.");
       setValue(initialValue.toString());
       return;
     }

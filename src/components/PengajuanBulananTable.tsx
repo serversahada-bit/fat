@@ -8,6 +8,7 @@ import { UploadInvoiceButton } from "@/components/UploadInvoiceButton";
 import { EditableAmount } from "@/components/EditableAmount";
 import { SemuaPengajuanForm } from "@/components/SemuaPengajuanForm";
 import { deleteKebutuhanBulananEmployeeBulk, updateKebutuhanBulananEmployee } from "@/app/actions/pengajuan";
+import { formatRincianProduk } from "@/lib/produk";
 
 type PengajuanStatus = "PENDING" | "APPROVED" | "REJECTED";
 
@@ -25,6 +26,7 @@ type PengajuanBulanan = {
   status: PengajuanStatus;
   catatanTambahan: string | null;
   catatanAdmin: string | null;
+  produkInternal: string | null;
 };
 
 type FinanceTransaction = {
@@ -86,6 +88,7 @@ export function PengajuanBulananTable({
   userName,
   financeSubmissionEnabled,
   financeSubmissionStartDate,
+  produkOptions = [],
 }: {
   rows: Row[];
   defaultBulan: string;
@@ -94,6 +97,7 @@ export function PengajuanBulananTable({
   userName: string;
   financeSubmissionEnabled: boolean;
   financeSubmissionStartDate: string | null;
+  produkOptions?: string[];
 }) {
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -353,7 +357,7 @@ export function PengajuanBulananTable({
                   <td className="px-4 py-4 text-center text-slate-600">{item.divisi}</td>
                   <td className="px-4 py-4 text-center text-slate-600">{item.pic}</td>
                   <td className="min-w-[200px] whitespace-normal px-4 py-4">
-                    <div className="font-semibold text-slate-900">{item.rincian}</div>
+                    <div className="font-semibold text-slate-900">{formatRincianProduk(item.rincian, item.produkInternal)}</div>
                     <div className="mt-0.5 text-xs text-slate-500">{item.bulan}</div>
                   </td>
                   <td className="px-4 py-4 text-center font-medium text-slate-700" onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
@@ -377,7 +381,8 @@ export function PengajuanBulananTable({
                         field="hargaSatuan"
                         type="bulanan"
                         role="employee"
-                        isEditable={item.status === "PENDING"}
+                        isEditable={item.status === "PENDING" && !item.produkInternal}
+                        mustBePositive
                       />
                     </div>
                   </td>
@@ -390,7 +395,7 @@ export function PengajuanBulananTable({
                         <div className="mt-2">
                           <FinanceSubmissionLauncher
                             defaultTanggal={today}
-                            keterangan={item.rincian}
+                            keterangan={formatRincianProduk(item.rincian, item.produkInternal)}
                             nominal={sisaBudget > 0 ? sisaBudget : item.total}
                             sourceId={item.id}
                             sourceType="bulanan"
@@ -468,6 +473,7 @@ export function PengajuanBulananTable({
       {editingRow && (
         <EditPengajuanModal
           row={editingRow}
+          produkOptions={produkOptions}
           onClose={() => setEditingRow(null)}
         />
       )}
@@ -503,7 +509,7 @@ function BulkFinanceModal({
 }) {
   const sourceId = rows.map((row) => row.item.id).join(",");
   const combinedNominal = rows.reduce((sum, row) => sum + (row.sisaBudget > 0 ? row.sisaBudget : row.item.total), 0);
-  const combinedKeterangan = `Gabungan ${rows.length} item: ${rows.map((row) => row.item.rincian).join(", ")}`;
+  const combinedKeterangan = `Gabungan ${rows.length} item: ${rows.map((row) => formatRincianProduk(row.item.rincian, row.item.produkInternal)).join(", ")}`;
 
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm animate-fade-in sm:p-6">
@@ -527,7 +533,7 @@ function BulkFinanceModal({
           <ul className="mt-4 flex flex-wrap gap-2">
             {rows.map((row) => (
               <li key={row.item.id} className="rounded-full border border-purple-200 bg-purple-50 px-3 py-1 text-xs font-semibold text-purple-700">
-                {row.item.rincian} &bull; {formatCurrency(row.sisaBudget > 0 ? row.sisaBudget : row.item.total)}
+                {formatRincianProduk(row.item.rincian, row.item.produkInternal)} &bull; {formatCurrency(row.sisaBudget > 0 ? row.sisaBudget : row.item.total)}
               </li>
             ))}
           </ul>
@@ -551,7 +557,7 @@ function BulkFinanceModal({
   );
 }
 
-function EditPengajuanModal({ row, onClose }: { row: Row; onClose: () => void }) {
+function EditPengajuanModal({ row, produkOptions, onClose }: { row: Row; produkOptions: string[]; onClose: () => void }) {
   const router = useRouter();
   const { item } = row;
   const [isPending, startTransition] = useTransition();
@@ -561,8 +567,16 @@ function EditPengajuanModal({ row, onClose }: { row: Row; onClose: () => void })
   const [satuan, setSatuan] = useState(item.satuan);
   const [hargaSatuan, setHargaSatuan] = useState(item.hargaSatuan);
   const [catatanTambahan, setCatatanTambahan] = useState(item.catatanTambahan || "");
+  const [produkInternal, setProdukInternal] = useState(item.produkInternal || "");
 
-  const total = qty * hargaSatuan;
+  // Keep the item's current product selectable even if it was since renamed or removed
+  // from Master Produk, so opening the modal never silently changes it.
+  const produkChoices = item.produkInternal && !produkOptions.includes(item.produkInternal)
+    ? [item.produkInternal, ...produkOptions]
+    : produkOptions;
+  const isProdukInternal = produkInternal !== "";
+  const effectiveHargaSatuan = isProdukInternal ? 0 : hargaSatuan;
+  const total = qty * effectiveHargaSatuan;
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -573,8 +587,9 @@ function EditPengajuanModal({ row, onClose }: { row: Row; onClose: () => void })
     formData.append("rincian", rincian);
     formData.append("qty", String(qty));
     formData.append("satuan", satuan);
-    formData.append("hargaSatuan", String(hargaSatuan));
+    formData.append("hargaSatuan", String(effectiveHargaSatuan));
     formData.append("catatanTambahan", catatanTambahan);
+    formData.append("produkInternal", produkInternal);
 
     startTransition(async () => {
       await updateKebutuhanBulananEmployee(formData);
@@ -626,6 +641,26 @@ function EditPengajuanModal({ row, onClose }: { row: Row; onClose: () => void })
               />
             </div>
 
+            <div className="flex flex-col gap-2">
+              <label htmlFor="edit-produkInternal" className="text-sm font-semibold text-slate-700">Produk Internal</label>
+              <select
+                id="edit-produkInternal"
+                value={produkInternal}
+                onChange={(e) => setProdukInternal(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20"
+              >
+                <option value="">Bukan Produk Internal</option>
+                {produkChoices.map((produk) => (
+                  <option key={produk} value={produk}>{produk}</option>
+                ))}
+              </select>
+              {isProdukInternal && (
+                <p className="text-xs text-slate-500">
+                  Rincian akan tampil sebagai &quot;{rincian.trim() || "Rincian"} - {produkInternal}&quot; dengan harga Rp 0.
+                </p>
+              )}
+            </div>
+
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-3 md:gap-6">
               <div className="flex flex-col gap-2">
                 <label htmlFor="edit-qty" className="text-sm font-semibold text-slate-700">QTY</label>
@@ -655,15 +690,32 @@ function EditPengajuanModal({ row, onClose }: { row: Row; onClose: () => void })
               </div>
               <div className="flex flex-col gap-2">
                 <label htmlFor="edit-hargaSatuan" className="text-sm font-semibold text-slate-700">Harga Satuan (Rp)</label>
-                <input
-                  id="edit-hargaSatuan"
-                  type="text"
-                  inputMode="numeric"
-                  required
-                  value={formatRibuan(hargaSatuan)}
-                  onChange={(e) => setHargaSatuan(parseInt(e.target.value.replace(/\D/g, ""), 10) || 0)}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20"
-                />
+                {isProdukInternal ? (
+                  <input
+                    id="edit-hargaSatuan"
+                    type="text"
+                    value="0"
+                    disabled
+                    className="w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm text-slate-500 outline-none"
+                  />
+                ) : (
+                  <input
+                    id="edit-hargaSatuan"
+                    type="text"
+                    inputMode="numeric"
+                    required
+                    value={formatRibuan(hargaSatuan)}
+                    onChange={(e) => {
+                      e.currentTarget.setCustomValidity("");
+                      setHargaSatuan(parseInt(e.target.value.replace(/\D/g, ""), 10) || 0);
+                    }}
+                    onInvalid={(e) => e.currentTarget.setCustomValidity("Harga satuan wajib diisi dan harus lebih dari 0.")}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20"
+                  />
+                )}
+                {isProdukInternal && (
+                  <p className="text-xs text-slate-500">Otomatis Rp 0 karena produk internal.</p>
+                )}
               </div>
             </div>
 

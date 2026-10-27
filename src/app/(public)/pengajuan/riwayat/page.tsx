@@ -4,6 +4,7 @@ import { AppShell } from "@/components/AppShell";
 import { EMPLOYEE_PERMISSIONS, requireEmployeePermission } from "@/lib/auth";
 import { getVisibleEmployeeNavItems } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
+import { formatRincianProduk } from "@/lib/produk";
 import Link from "next/link";
 
 function formatCurrency(amount: number) {
@@ -66,7 +67,7 @@ export default async function RiwayatPengajuanPage({
       tipe: "Bulanan",
       bulan: item.bulan,
       kategori: item.kategori || "OPS RT",
-      uraian: item.rincian,
+      uraian: formatRincianProduk(item.rincian, item.produkInternal),
       qty: item.qty,
       satuan: item.satuan,
       hargaSatuan: item.hargaSatuan,

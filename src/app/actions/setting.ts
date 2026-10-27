@@ -113,6 +113,54 @@ export async function deleteNama(formData: FormData) {
   redirect("/dashboard/setting?tab=nama");
 }
 
+export async function createProduk(formData: FormData) {
+  await requireSuperAdminPermission(DASHBOARD_PERMISSIONS.USERS);
+  const nama = String(formData.get("nama") ?? "").trim();
+
+  if (!nama) throw new Error("Nama produk wajib diisi");
+
+  await prisma.master_produk.create({
+    data: { nama }
+  });
+
+  revalidatePath("/dashboard/setting");
+  revalidatePath("/pengajuan/bulanan");
+  redirect("/dashboard/setting?tab=produk");
+}
+
+// Renaming only affects the dropdown for new submissions; kebutuhan_bulanan rows keep
+// the product name they were submitted with, so past requests still read the same.
+export async function updateProdukNama(id: string, nama: string) {
+  await requireSuperAdminPermission(DASHBOARD_PERMISSIONS.USERS);
+  const trimmed = nama.trim();
+
+  if (!id || !trimmed) return { success: false };
+
+  await prisma.master_produk.update({
+    where: { id },
+    data: { nama: trimmed }
+  });
+
+  revalidatePath("/dashboard/setting");
+  revalidatePath("/pengajuan/bulanan");
+  return { success: true };
+}
+
+export async function deleteProduk(formData: FormData) {
+  await requireSuperAdminPermission(DASHBOARD_PERMISSIONS.USERS);
+  const id = String(formData.get("id") ?? "").trim();
+
+  if (!id) throw new Error("ID produk tidak valid");
+
+  await prisma.master_produk.delete({
+    where: { id }
+  });
+
+  revalidatePath("/dashboard/setting");
+  revalidatePath("/pengajuan/bulanan");
+  redirect("/dashboard/setting?tab=produk");
+}
+
 export async function createCanvas(formData: FormData) {
   await requireSuperAdminPermission(DASHBOARD_PERMISSIONS.USERS);
   const posisi = String(formData.get("posisi") ?? "").trim();

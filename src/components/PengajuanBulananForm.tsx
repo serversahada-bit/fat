@@ -21,18 +21,25 @@ export function PengajuanBulananForm({
   totalSisa,
   bulanLabel,
   rincianSuggestions = [],
+  produkOptions = [],
 }: {
   dbUser: any,
   totalSisa: number,
   bulanLabel: string,
   rincianSuggestions?: string[],
+  produkOptions?: string[],
 }) {
   const [qty, setQty] = useState(1);
   const [hargaSatuan, setHargaSatuan] = useState(0);
   const [rincian, setRincian] = useState("");
   const [showRincianSuggestions, setShowRincianSuggestions] = useState(false);
+  const [produkInternal, setProdukInternal] = useState("");
 
-  const total = qty * hargaSatuan;
+  // Internal products (samples) are always Rp 0; the typed price is kept aside so it
+  // comes back if the user switches back to "Bukan Produk Internal".
+  const isProdukInternal = produkInternal !== "";
+  const effectiveHargaSatuan = isProdukInternal ? 0 : hargaSatuan;
+  const total = qty * effectiveHargaSatuan;
   const isOverLimit = totalSisa > 0 && total > totalSisa;
 
   const filteredRincianSuggestions = rincian.trim()
@@ -101,6 +108,27 @@ export function PengajuanBulananForm({
         )}
       </div>
 
+      <div className="flex flex-col gap-2">
+        <label htmlFor="produkInternal" className="text-sm font-semibold text-slate-700">Produk Internal</label>
+        <select
+          id="produkInternal"
+          name="produkInternal"
+          value={produkInternal}
+          onChange={(e) => setProdukInternal(e.target.value)}
+          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20"
+        >
+          <option value="">Bukan Produk Internal</option>
+          {produkOptions.map((produk) => (
+            <option key={produk} value={produk}>{produk}</option>
+          ))}
+        </select>
+        <p className="text-xs text-slate-500">
+          {isProdukInternal
+            ? `Rincian akan tampil sebagai "${rincian.trim() || "Rincian"} - ${produkInternal}" dengan harga Rp 0.`
+            : "Pilih produk jika barang internal / sample (harga otomatis Rp 0)."}
+        </p>
+      </div>
+
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-3 md:gap-6">
         <div className="flex flex-col gap-2">
           <label htmlFor="qty" className="text-sm font-semibold text-slate-700">QTY</label>
@@ -127,20 +155,36 @@ export function PengajuanBulananForm({
         </div>
         <div className="flex flex-col gap-2">
           <label htmlFor="hargaSatuan" className="text-sm font-semibold text-slate-700">Harga Satuan (Rp)</label>
-          <input type="hidden" name="hargaSatuan" value={hargaSatuan || ""} />
-          <input
-            id="hargaSatuan"
-            type="text"
-            inputMode="numeric"
-            placeholder="Harga"
-            required
-            value={formatRibuan(hargaSatuan)}
-            onChange={(e) => setHargaSatuan(parseInt(e.target.value.replace(/\D/g, ""), 10) || 0)}
-            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20"
-          />
+          <input type="hidden" name="hargaSatuan" value={isProdukInternal ? "0" : (hargaSatuan || "")} />
+          {isProdukInternal ? (
+            <input
+              id="hargaSatuan"
+              type="text"
+              value="0"
+              disabled
+              className="w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm text-slate-500 outline-none"
+            />
+          ) : (
+            <input
+              id="hargaSatuan"
+              type="text"
+              inputMode="numeric"
+              placeholder="Harga"
+              required
+              value={formatRibuan(hargaSatuan)}
+              onChange={(e) => {
+                e.currentTarget.setCustomValidity("");
+                setHargaSatuan(parseInt(e.target.value.replace(/\D/g, ""), 10) || 0);
+              }}
+              onInvalid={(e) => e.currentTarget.setCustomValidity("Harga satuan wajib diisi dan harus lebih dari 0.")}
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20"
+            />
+          )}
+          {isProdukInternal && (
+            <p className="text-xs text-slate-500">Otomatis Rp 0 karena produk internal.</p>
+          )}
         </div>
       </div>
-
 
 
       <div className="flex flex-col gap-2">

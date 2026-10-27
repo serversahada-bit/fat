@@ -5,6 +5,7 @@ import Link from "next/link";
 import { BulananTable, type PengajuanBulanan } from "@/components/BulananTable";
 import { ExportPDFButton } from "@/components/ExportPDFButton";
 import { ImportKebutuhanBulananButton } from "@/components/ImportKebutuhanBulananButton";
+import { formatRincianProduk } from "@/lib/produk";
 
 export function BulananApprovalContent({
   items,
@@ -17,7 +18,8 @@ export function BulananApprovalContent({
 }) {
   const [bulanFilter, setBulanFilter] = useState("SEMUA");
   const exportItems = useMemo(
-    () => bulanFilter === "SEMUA" ? items : items.filter((item) => item.bulan === bulanFilter),
+    () => (bulanFilter === "SEMUA" ? items : items.filter((item) => item.bulan === bulanFilter))
+      .map((item) => ({ ...item, rincian: formatRincianProduk(item.rincian, item.produkInternal) })),
     [items, bulanFilter],
   );
   const exportTitle = bulanFilter === "SEMUA" ? reportTitle : `${reportTitle} - ${bulanFilter.toUpperCase()}`;

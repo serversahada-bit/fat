@@ -10,6 +10,7 @@ import { DeleteCatatanSaldoButton } from "@/components/DeleteCatatanSaldoButton"
 import { UploadBuktiSaldoButton } from "@/components/UploadBuktiSaldoButton";
 import { RealisasiRabTables } from "@/components/RealisasiRabTables";
 import { getBulanLabel } from "@/lib/bulan";
+import { formatRincianProduk } from "@/lib/produk";
 import { EMPLOYEE_PERMISSIONS, requireEmployeePermission } from "@/lib/auth";
 import { getVisibleEmployeeNavItems } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
@@ -181,6 +182,7 @@ export default async function RealisasiRabPage() {
       select: {
         id: true, bulan: true, total: true, status: true, kategori: true,
         rincian: true, createdAt: true, divisi: true, qty: true, satuan: true, hargaSatuan: true,
+        produkInternal: true,
       },
     }),
     prisma.kebutuhan_iklan.findMany({
@@ -316,7 +318,7 @@ export default async function RealisasiRabPage() {
       bulan: item.bulan,
       divisi: item.divisi,
       tipeBiaya: item.kategori || "OPS RT",
-      uraian: item.rincian,
+      uraian: formatRincianProduk(item.rincian, item.produkInternal),
       qty: item.qty,
       satuan: item.satuan,
       hargaSatuan: item.hargaSatuan,
