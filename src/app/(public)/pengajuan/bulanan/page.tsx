@@ -66,7 +66,7 @@ export default async function PengajuanBulananPage({
   // daftarPengajuan diambil untuk semua bulan (tidak difilter bulan) supaya bisa
   // menghitung "Sisa bulan lalu" sebagai referensi. Yang ditampilkan di tabel
   // hanya bulan berjalan (daftarPengajuanBulanIni di bawah).
-  const [daftarPengajuan, financeSubmissions, rincianHistory] = await Promise.all([
+  const [daftarPengajuan, financeSubmissions, rincianHistory, masterProduk] = await Promise.all([
     prisma.kebutuhan_bulanan.findMany({
       where: whereClause,
       orderBy: { createdAt: "desc" },
@@ -100,7 +100,13 @@ export default async function PengajuanBulananPage({
       orderBy: { createdAt: "desc" },
       take: 200,
     }),
+    prisma.master_produk.findMany({
+      select: { nama: true },
+      orderBy: { nama: "asc" },
+    }),
   ]);
+
+  const produkOptions = masterProduk.map((produk) => produk.nama);
 
   const itemsById = new Map(daftarPengajuan.map((item) => [item.id, item]));
 
@@ -239,7 +245,7 @@ export default async function PengajuanBulananPage({
               </div>
 
               <div className="custom-scrollbar overflow-y-auto p-6 md:p-8">
-                <PengajuanBulananForm dbUser={dbUser} totalSisa={totalSisa} bulanLabel={currentBulan} rincianSuggestions={rincianSuggestions} />
+                <PengajuanBulananForm dbUser={dbUser} totalSisa={totalSisa} bulanLabel={currentBulan} rincianSuggestions={rincianSuggestions} produkOptions={produkOptions} />
               </div>
             </div>
           </div>
@@ -281,6 +287,7 @@ export default async function PengajuanBulananPage({
               userName={session.user.name ?? ""}
               financeSubmissionEnabled={financeSetting.financeSubmissionEnabled}
               financeSubmissionStartDate={financeSubmissionStartDateStr}
+              produkOptions={produkOptions}
             />
           )}
         </section>

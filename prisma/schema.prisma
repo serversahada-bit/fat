@@ -117,6 +117,7 @@ model kebutuhan_bulanan {
   status          PengajuanStatus @default(PENDING)
   catatanTambahan String?         @db.Text
   catatanAdmin    String?         @db.Text
+  produkInternal  String?
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
   user            user            @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -235,6 +236,13 @@ model master_pajak {
 }
 
 model master_nama {
+  id        String   @id @default(cuid())
+  nama      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model master_produk {
   id        String   @id @default(cuid())
   nama      String
   createdAt DateTime @default(now())

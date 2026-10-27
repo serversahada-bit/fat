@@ -8,11 +8,12 @@ import Link from "next/link";
 import { SettingBankTab } from "@/components/SettingBankTab";
 import { SettingPajakTab } from "@/components/SettingPajakTab";
 import { SettingNamaTab } from "@/components/SettingNamaTab";
+import { SettingProdukTab } from "@/components/SettingProdukTab";
 import { SettingCanvasTab } from "@/components/SettingCanvasTab";
 import { SettingFinanceScheduleTab } from "@/components/SettingFinanceScheduleTab";
 import { PasswordInput } from "@/components/PasswordInput";
 import { UserTable } from "@/components/UserTable";
-import { Users, User, Landmark, Receipt, PenTool, CalendarClock } from "lucide-react";
+import { Users, User, Package, Landmark, Receipt, PenTool, CalendarClock } from "lucide-react";
 import {
   EMPLOYEE_PERMISSION_OPTIONS,
   SUPER_ADMIN_PERMISSION_OPTIONS,
@@ -79,6 +80,7 @@ export default async function KelolaPenggunaPage({
               {[
                 { tab: "user", label: "User", Icon: Users },
                 { tab: "nama", label: "Nama", Icon: User },
+                { tab: "produk", label: "Produk Internal", Icon: Package },
                 { tab: "bank", label: "Setting Bank", Icon: Landmark },
                 { tab: "pajak", label: "Setting Pajak", Icon: Receipt },
                 { tab: "canvas", label: "Setting Canvas", Icon: PenTool },
@@ -414,6 +416,7 @@ export default async function KelolaPenggunaPage({
           </>
         )}
         {currentTab === "nama" && <SettingNamaTab />}
+        {currentTab === "produk" && <SettingProdukTab />}
         {currentTab === "bank" && <SettingBankTab />}
         {currentTab === "pajak" && <SettingPajakTab />}
         {currentTab === "canvas" && <SettingCanvasTab />}
