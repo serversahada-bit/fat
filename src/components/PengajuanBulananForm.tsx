@@ -3,6 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import { createKebutuhanBulanan } from "@/app/actions/pengajuan";
+import { SATUAN_PRODUK_INTERNAL } from "@/lib/produk";
+
+const MAX_LAMPIRAN_CATATAN = 10;
+const SATUAN_OPTIONS = ['UNIT', 'PCS', 'BOX', 'ORANG', 'BANDLE', 'PACK', 'BULANAN', 'MINGGUAN', 'HARI', 'JAM', 'LITER', 'KG', 'RIM', 'SET', 'VIDEO', 'FOTO', 'SHEETS', 'DUS'];
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("id-ID", {
@@ -34,9 +38,11 @@ export function PengajuanBulananForm({
   const [rincian, setRincian] = useState("");
   const [showRincianSuggestions, setShowRincianSuggestions] = useState(false);
   const [produkInternal, setProdukInternal] = useState("");
+  const [satuan, setSatuan] = useState("");
+  const [lampiranNames, setLampiranNames] = useState<string[]>([]);
 
-  // Internal products (samples) are always Rp 0; the typed price is kept aside so it
-  // comes back if the user switches back to "Bukan Produk Internal".
+  // Internal products (samples) are always Rp 0 and counted in SATUAN_PRODUK_INTERNAL; the
+  // typed price/satuan are kept aside so they come back on "Bukan Produk Internal".
   const isProdukInternal = produkInternal !== "";
   const effectiveHargaSatuan = isProdukInternal ? 0 : hargaSatuan;
   const total = qty * effectiveHargaSatuan;
@@ -146,12 +152,33 @@ export function PengajuanBulananForm({
         </div>
         <div className="flex flex-col gap-2">
           <label htmlFor="satuan" className="text-sm font-semibold text-slate-700">Satuan</label>
-          <select id="satuan" name="satuan" required className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20">
-            <option value="">Pilih Satuan...</option>
-            {['UNIT', 'PCS', 'BOX', 'ORANG', 'BANDLE', 'PACK', 'BULANAN', 'MINGGUAN', 'HARI', 'JAM', 'LITER', 'KG', 'RIM', 'SET', 'VIDEO', 'FOTO', 'SHEETS', 'DUS'].map((satuan) => (
-              <option key={satuan} value={satuan}>{satuan}</option>
-            ))}
-          </select>
+          {isProdukInternal ? (
+            <>
+              <input type="hidden" name="satuan" value={SATUAN_PRODUK_INTERNAL} />
+              <input
+                id="satuan"
+                type="text"
+                value={SATUAN_PRODUK_INTERNAL}
+                disabled
+                className="w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm text-slate-500 outline-none"
+              />
+              <p className="text-xs text-slate-500">Otomatis {SATUAN_PRODUK_INTERNAL} untuk produk internal.</p>
+            </>
+          ) : (
+            <select
+              id="satuan"
+              name="satuan"
+              required
+              value={satuan}
+              onChange={(e) => setSatuan(e.target.value)}
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20"
+            >
+              <option value="">Pilih Satuan...</option>
+              {SATUAN_OPTIONS.map((opt) => (
+                <option key={opt} value={opt}>{opt}</option>
+              ))}
+            </select>
+          )}
         </div>
         <div className="flex flex-col gap-2">
           <label htmlFor="hargaSatuan" className="text-sm font-semibold text-slate-700">Harga Satuan (Rp)</label>
@@ -196,6 +223,32 @@ export function PengajuanBulananForm({
           rows={2}
           className="w-full resize-y rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20"
         />
+        <label className="flex w-fit cursor-pointer items-center gap-2 rounded-lg border border-purple-200 bg-purple-50 px-3 py-1.5 text-xs font-semibold text-purple-700 transition-colors hover:bg-purple-100">
+          {lampiranNames.length > 0 ? "Ganti Lampiran" : "+ Lampiran (Gambar / PDF)"}
+          <input
+            type="file"
+            name="lampiranCatatan"
+            multiple
+            accept="image/png,image/jpeg,image/gif,image/webp,image/bmp,application/pdf"
+            className="sr-only"
+            onChange={(e) => {
+              const files = Array.from(e.currentTarget.files ?? []);
+              e.currentTarget.setCustomValidity(
+                files.length > MAX_LAMPIRAN_CATATAN ? `Lampiran maksimal ${MAX_LAMPIRAN_CATATAN} file.` : ""
+              );
+              e.currentTarget.reportValidity();
+              setLampiranNames(files.map((file) => file.name));
+            }}
+          />
+        </label>
+        {lampiranNames.length > 0 && (
+          <ul className="flex flex-col gap-0.5 text-xs text-slate-600">
+            {lampiranNames.map((name, index) => (
+              <li key={`${name}-${index}`} className="truncate">&bull; {name}</li>
+            ))}
+          </ul>
+        )}
+        <p className="text-xs text-slate-500">Maks. {MAX_LAMPIRAN_CATATAN} file.</p>
       </div>
 
       <div className="flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row">

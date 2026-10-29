@@ -22,6 +22,7 @@ type PengajuanBulanan = {
   total: number;
   status: PengajuanStatus;
   catatanTambahan: string | null;
+  lampiranCatatan: string | null;
   catatanAdmin: string | null;
   produkInternal: string | null;
   createdAt: Date;

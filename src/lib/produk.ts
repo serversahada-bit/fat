@@ -6,3 +6,7 @@
 export function formatRincianProduk(rincian: string, produkInternal?: string | null) {
   return produkInternal ? `${rincian} - ${produkInternal}` : rincian;
 }
+
+// Internal products skip the satuan picker: they're always counted in this unit, so the
+// employee only has to fill in QTY.
+export const SATUAN_PRODUK_INTERNAL = "PCS";
