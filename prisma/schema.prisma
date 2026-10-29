@@ -116,6 +116,7 @@ model kebutuhan_bulanan {
   total           Float
   status          PengajuanStatus @default(PENDING)
   catatanTambahan String?         @db.Text
+  lampiranCatatan String?         @db.Text
   catatanAdmin    String?         @db.Text
   produkInternal  String?
   createdAt       DateTime        @default(now())

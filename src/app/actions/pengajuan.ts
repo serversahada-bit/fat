@@ -1,10 +1,32 @@
 "use server";
 
+import { rm } from "node:fs/promises";
+import path from "node:path";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { DASHBOARD_PERMISSIONS, requireAdminPermission, requireRole } from "@/lib/auth";
 import { getBulanLabelWithCutoff, getMetaBulanLabelWithCutoff } from "@/lib/bulan-server";
+import { SATUAN_PRODUK_INTERNAL } from "@/lib/produk";
+import { getUploadAbsolutePathFromUrl, parseUploadUrls } from "@/lib/uploads";
+import { getUploadedFiles, saveUploadedFiles } from "@/lib/uploads-server";
+
+const MAX_LAMPIRAN_CATATAN = 10;
+const LAMPIRAN_CATATAN_FOLDER = "bulanan-lampiran";
+// Checked by extension since that's what the upload route serves the content type by.
+// SVG is left out on purpose: it can carry scripts and is served from our own origin.
+const LAMPIRAN_CATATAN_EXTENSIONS = [".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".pdf"];
+
+function getLampiranCatatanFiles(formData: FormData, maxFiles: number) {
+  const files = getUploadedFiles(formData.getAll("lampiranCatatan"));
+  if (files.some((file) => !LAMPIRAN_CATATAN_EXTENSIONS.includes(path.extname(file.name).toLowerCase()))) {
+    throw new Error("Lampiran hanya boleh berupa gambar atau PDF.");
+  }
+  if (files.length > maxFiles) {
+    throw new Error(`Lampiran maksimal ${MAX_LAMPIRAN_CATATAN} file.`);
+  }
+  return files;
+}
 
 // Empty value means "Bukan Produk Internal". A chosen product must exist in master_produk
 // so the dropdown can't be bypassed with an arbitrary name to get a Rp 0 item through.
@@ -95,9 +117,9 @@ export async function createKebutuhanBulanan(formData: FormData) {
   const kategori = String(formData.get("kategori") ?? "OPS RT").trim();
   const rincian = String(formData.get("rincian") ?? "").trim();
   const qty = parseInt(String(formData.get("qty") ?? "0"), 10);
-  const satuan = String(formData.get("satuan") ?? "").trim();
   const catatanTambahan = String(formData.get("catatanTambahan") ?? "").trim();
   const produkInternal = await resolveProdukInternal(formData.get("produkInternal"));
+  const satuan = produkInternal ? SATUAN_PRODUK_INTERNAL : String(formData.get("satuan") ?? "").trim();
   // Internal products (samples) are always Rp 0; everything else must have a real price.
   const hargaSatuan = produkInternal ? 0 : parseFloat(String(formData.get("hargaSatuan") ?? "0"));
 
@@ -110,6 +132,9 @@ export async function createKebutuhanBulanan(formData: FormData) {
   }
 
   const total = qty * hargaSatuan;
+
+  const lampiranFiles = getLampiranCatatanFiles(formData, MAX_LAMPIRAN_CATATAN);
+  const lampiranUrls = await saveUploadedFiles(lampiranFiles, LAMPIRAN_CATATAN_FOLDER, MAX_LAMPIRAN_CATATAN);
 
   await prisma.kebutuhan_bulanan.create({
     data: {
@@ -124,6 +149,7 @@ export async function createKebutuhanBulanan(formData: FormData) {
       hargaSatuan,
       total,
       catatanTambahan: catatanTambahan ? catatanTambahan : null,
+      lampiranCatatan: lampiranUrls.length > 0 ? lampiranUrls.join(", ") : null,
       produkInternal,
     }
   });
@@ -466,6 +492,11 @@ export async function updateKebutuhanBulananEmployee(formData: FormData) {
     }
   }
 
+  // Internal products are always counted in SATUAN_PRODUK_INTERNAL, whatever satuan was sent.
+  if (newProdukInternal && (formData.has("satuan") || "produkInternal" in updateData)) {
+    updateData.satuan = SATUAN_PRODUK_INTERNAL;
+  }
+
   if (formData.has("qty")) {
     const qty = parseInt(String(formData.get("qty")), 10);
     if (!isNaN(qty) && qty > 0) {
@@ -500,12 +531,38 @@ export async function updateKebutuhanBulananEmployee(formData: FormData) {
     updateData.total = newQty * newHargaSatuan;
   }
 
+  // The edit modal always sends lampiranCatatanKept (possibly empty); other callers that
+  // only touch qty/harga leave it out so the attachments stay untouched.
+  let removedLampiranUrls: string[] = [];
+  if (formData.has("lampiranCatatanKept")) {
+    // Only URLs already on this item can be kept, so the field can't be used to pull in
+    // somebody else's uploads.
+    const existingUrls = parseUploadUrls(existing.lampiranCatatan);
+    const keptUrls = parseUploadUrls(String(formData.get("lampiranCatatanKept")))
+      .filter((url) => existingUrls.includes(url));
+    const remainingSlots = MAX_LAMPIRAN_CATATAN - keptUrls.length;
+    const newFiles = getLampiranCatatanFiles(formData, remainingSlots);
+    const newUrls = await saveUploadedFiles(newFiles, LAMPIRAN_CATATAN_FOLDER, remainingSlots);
+
+    const finalUrls = [...keptUrls, ...newUrls];
+    const lampiranCatatan = finalUrls.length > 0 ? finalUrls.join(", ") : null;
+    if (lampiranCatatan !== existing.lampiranCatatan) {
+      updateData.lampiranCatatan = lampiranCatatan;
+    }
+    removedLampiranUrls = existingUrls.filter((url) => !keptUrls.includes(url));
+  }
+
   if (Object.keys(updateData).length === 0) return;
 
   await prisma.kebutuhan_bulanan.update({
     where: { id: pengajuanId },
     data: updateData,
   });
+
+  for (const url of removedLampiranUrls) {
+    const absolutePath = getUploadAbsolutePathFromUrl(url);
+    if (absolutePath) await rm(absolutePath, { force: true });
+  }
 
   revalidatePath("/pengajuan/bulanan");
 }

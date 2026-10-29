@@ -2,13 +2,15 @@
 
 import { Fragment, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2, Send, Filter } from "lucide-react";
+import { Trash2, Send, Filter, X as XIcon } from "lucide-react";
 import { FinanceSubmissionLauncher } from "@/components/FinanceSubmissionLauncher";
 import { UploadInvoiceButton } from "@/components/UploadInvoiceButton";
 import { EditableAmount } from "@/components/EditableAmount";
+import { LampiranCatatanLinks } from "@/components/LampiranCatatanLinks";
 import { SemuaPengajuanForm } from "@/components/SemuaPengajuanForm";
 import { deleteKebutuhanBulananEmployeeBulk, updateKebutuhanBulananEmployee } from "@/app/actions/pengajuan";
-import { formatRincianProduk } from "@/lib/produk";
+import { formatRincianProduk, SATUAN_PRODUK_INTERNAL } from "@/lib/produk";
+import { getUploadDisplayName, parseUploadUrls } from "@/lib/uploads";
 
 type PengajuanStatus = "PENDING" | "APPROVED" | "REJECTED";
 
@@ -25,6 +27,7 @@ type PengajuanBulanan = {
   total: number;
   status: PengajuanStatus;
   catatanTambahan: string | null;
+  lampiranCatatan: string | null;
   catatanAdmin: string | null;
   produkInternal: string | null;
 };
@@ -71,6 +74,7 @@ function formatRibuan(amount: number) {
 
 const KATEGORI_OPTIONS = ["OPS RT", "ATK", "P3K", "DI LUAR RAB"];
 const SATUAN_OPTIONS = ["UNIT", "PCS", "BOX", "ORANG", "BANDLE", "PACK", "BULANAN", "MINGGUAN", "HARI", "JAM", "LITER", "KG", "RIM", "SET", "VIDEO", "FOTO", "SHEETS", "DUS"];
+const MAX_LAMPIRAN_CATATAN = 10;
 const NAMA_BULAN_ORDER = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
 
 function bulanSortKey(label: string) {
@@ -419,12 +423,17 @@ export function PengajuanBulananTable({
                         <span className="font-semibold text-slate-700">Karyawan:</span> <span className="text-slate-600">{item.catatanTambahan}</span>
                       </div>
                     )}
+                    {item.lampiranCatatan && (
+                      <div className="mb-1.5">
+                        <LampiranCatatanLinks value={item.lampiranCatatan} />
+                      </div>
+                    )}
                     {item.catatanAdmin && (
-                      <div className={`mt-1.5 border-t border-slate-100 pt-1.5 ${!item.catatanTambahan ? "mt-0 border-none pt-0" : ""}`}>
+                      <div className={`mt-1.5 border-t border-slate-100 pt-1.5 ${!item.catatanTambahan && !item.lampiranCatatan ? "mt-0 border-none pt-0" : ""}`}>
                         <span className="font-semibold text-purple-700">Admin:</span> <span className="font-medium text-purple-600">{item.catatanAdmin}</span>
                       </div>
                     )}
-                    {!item.catatanTambahan && !item.catatanAdmin && <span className="text-slate-400">-</span>}
+                    {!item.catatanTambahan && !item.lampiranCatatan && !item.catatanAdmin && <span className="text-slate-400">-</span>}
                   </td>
                 </tr>
                 {financeData && financeData.transactions.length > 0 && (
@@ -568,6 +577,9 @@ function EditPengajuanModal({ row, produkOptions, onClose }: { row: Row; produkO
   const [hargaSatuan, setHargaSatuan] = useState(item.hargaSatuan);
   const [catatanTambahan, setCatatanTambahan] = useState(item.catatanTambahan || "");
   const [produkInternal, setProdukInternal] = useState(item.produkInternal || "");
+  const [keptLampiran, setKeptLampiran] = useState(() => parseUploadUrls(item.lampiranCatatan));
+  const [newLampiran, setNewLampiran] = useState<File[]>([]);
+  const remainingLampiranSlots = MAX_LAMPIRAN_CATATAN - keptLampiran.length - newLampiran.length;
 
   // Keep the item's current product selectable even if it was since renamed or removed
   // from Master Produk, so opening the modal never silently changes it.
@@ -586,9 +598,11 @@ function EditPengajuanModal({ row, produkOptions, onClose }: { row: Row; produkO
     formData.append("kategori", kategori);
     formData.append("rincian", rincian);
     formData.append("qty", String(qty));
-    formData.append("satuan", satuan);
+    formData.append("satuan", isProdukInternal ? SATUAN_PRODUK_INTERNAL : satuan);
     formData.append("hargaSatuan", String(effectiveHargaSatuan));
     formData.append("catatanTambahan", catatanTambahan);
+    formData.append("lampiranCatatanKept", keptLampiran.join(", "));
+    newLampiran.forEach((file) => formData.append("lampiranCatatan", file));
     formData.append("produkInternal", produkInternal);
 
     startTransition(async () => {
@@ -676,17 +690,30 @@ function EditPengajuanModal({ row, produkOptions, onClose }: { row: Row; produkO
               </div>
               <div className="flex flex-col gap-2">
                 <label htmlFor="edit-satuan" className="text-sm font-semibold text-slate-700">Satuan</label>
-                <select
-                  id="edit-satuan"
-                  value={satuan}
-                  onChange={(e) => setSatuan(e.target.value)}
-                  required
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20"
-                >
-                  {SATUAN_OPTIONS.map((opt) => (
-                    <option key={opt} value={opt}>{opt}</option>
-                  ))}
-                </select>
+                {isProdukInternal ? (
+                  <input
+                    id="edit-satuan"
+                    type="text"
+                    value={SATUAN_PRODUK_INTERNAL}
+                    disabled
+                    className="w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm text-slate-500 outline-none"
+                  />
+                ) : (
+                  <select
+                    id="edit-satuan"
+                    value={satuan}
+                    onChange={(e) => setSatuan(e.target.value)}
+                    required
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20"
+                  >
+                    {SATUAN_OPTIONS.map((opt) => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                  </select>
+                )}
+                {isProdukInternal && (
+                  <p className="text-xs text-slate-500">Otomatis {SATUAN_PRODUK_INTERNAL} untuk produk internal.</p>
+                )}
               </div>
               <div className="flex flex-col gap-2">
                 <label htmlFor="edit-hargaSatuan" className="text-sm font-semibold text-slate-700">Harga Satuan (Rp)</label>
@@ -732,6 +759,55 @@ function EditPengajuanModal({ row, produkOptions, onClose }: { row: Row; produkO
                 rows={2}
                 className="w-full resize-y rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20"
               />
+              {(keptLampiran.length > 0 || newLampiran.length > 0) && (
+                <ul className="flex flex-col gap-1 text-xs">
+                  {keptLampiran.map((url) => (
+                    <li key={url} className="flex items-center gap-2">
+                      <a href={url} target="_blank" rel="noreferrer" className="truncate text-blue-600 hover:underline">
+                        {getUploadDisplayName(url)}
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => setKeptLampiran((prev) => prev.filter((u) => u !== url))}
+                        className="rounded p-0.5 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                        aria-label={`Hapus ${getUploadDisplayName(url)}`}
+                      >
+                        <XIcon className="h-3.5 w-3.5" />
+                      </button>
+                    </li>
+                  ))}
+                  {newLampiran.map((file, index) => (
+                    <li key={`${file.name}-${index}`} className="flex items-center gap-2">
+                      <span className="truncate text-slate-600">{file.name} <span className="text-slate-400">(baru)</span></span>
+                      <button
+                        type="button"
+                        onClick={() => setNewLampiran((prev) => prev.filter((_, i) => i !== index))}
+                        className="rounded p-0.5 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                        aria-label={`Hapus ${file.name}`}
+                      >
+                        <XIcon className="h-3.5 w-3.5" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {remainingLampiranSlots > 0 && (
+                <label className="flex w-fit cursor-pointer items-center gap-2 rounded-lg border border-purple-200 bg-purple-50 px-3 py-1.5 text-xs font-semibold text-purple-700 transition-colors hover:bg-purple-100">
+                  + Lampiran (Gambar / PDF)
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/png,image/jpeg,image/gif,image/webp,image/bmp,application/pdf"
+                    className="sr-only"
+                    onChange={(e) => {
+                      const files = Array.from(e.currentTarget.files ?? []).slice(0, remainingLampiranSlots);
+                      setNewLampiran((prev) => [...prev, ...files]);
+                      e.currentTarget.value = "";
+                    }}
+                  />
+                </label>
+              )}
+              <p className="text-xs text-slate-500">Maks. {MAX_LAMPIRAN_CATATAN} file.</p>
             </div>
 
             <div className="flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row">

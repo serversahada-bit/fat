@@ -6,6 +6,7 @@ import { ApprovalDropdown } from "@/components/ApprovalDropdown";
 import { ApprovalNote } from "@/components/ApprovalNote";
 import { EditableAmount } from "@/components/EditableAmount";
 import { EditableBulan } from "@/components/EditableBulan";
+import { LampiranCatatanLinks } from "@/components/LampiranCatatanLinks";
 import { deleteKebutuhanBulananBulk, updateKebutuhanBulananStatusBulk } from "@/app/actions/pengajuan";
 import { formatRincianProduk } from "@/lib/produk";
 
@@ -25,6 +26,7 @@ export type PengajuanBulanan = {
   total: number;
   status: PengajuanStatus;
   catatanTambahan: string | null;
+  lampiranCatatan: string | null;
   catatanAdmin: string | null;
   produkInternal: string | null;
   createdAt: Date;
@@ -292,10 +294,17 @@ export function BulananTable({
         <td className="px-4 py-4 text-right font-bold text-slate-900">{formatCurrency(item.total)}</td>
         <td className="px-4 py-4 text-center text-xs text-slate-500">Diajukan tanggal {formatDate(item.createdAt)}</td>
         <td className="min-w-[250px] px-4 py-4 text-left">
-          {item.catatanTambahan && (
+          {(item.catatanTambahan || item.lampiranCatatan) && (
             <div className="mb-3 rounded-lg border border-slate-100 bg-slate-50 p-2 text-xs">
               <span className="font-semibold text-slate-700">Karyawan:</span>
-              <p className="mt-0.5 whitespace-pre-wrap text-slate-600">{item.catatanTambahan}</p>
+              {item.catatanTambahan && (
+                <p className="mt-0.5 whitespace-pre-wrap text-slate-600">{item.catatanTambahan}</p>
+              )}
+              {item.lampiranCatatan && (
+                <div className="mt-1.5">
+                  <LampiranCatatanLinks value={item.lampiranCatatan} />
+                </div>
+              )}
             </div>
           )}
           <ApprovalNote pengajuanId={item.id} initialCatatan={item.catatanAdmin} />
